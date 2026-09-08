@@ -20,7 +20,8 @@
     "@ducanh2912/next-pwa": "^10.2.7",
     "pako": "^2.1.0",
     "html2canvas": "^1.4.1",
-    "jspdf": "^2.5.1"
+    "jspdf": "^2.5.1",
+    "pdfjs-dist": "3.11.174"
   },
   "devDependencies": {
     "typescript": "^5.4.5",

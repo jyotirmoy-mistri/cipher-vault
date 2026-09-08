@@ -10,24 +10,18 @@ import SettingsTab from '../components/SettingsTab';
 export default function CipherVault() {
   const [activeTab, setActiveTab] = useState('send');
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [qrConfig, setQrConfig] = useState({ fg: '#000000', bg: '#ffffff' });
+  const [qrConfig, setQrConfig] = useState({ fg: '#000000', bg: '#ffffff', level: 'M' });
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'light') setIsDarkMode(false);
-    
-    localforage.getItem('qr_config').then((savedQr: any) => {
-        if(savedQr) setQrConfig(savedQr);
-    });
+    localforage.getItem('qr_config').then((savedQr: any) => { if(savedQr) setQrConfig({...qrConfig, ...savedQr}); });
   }, []);
 
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-    localStorage.setItem('theme', !isDarkMode ? 'dark' : 'light');
-  };
+  const toggleTheme = () => { setIsDarkMode(!isDarkMode); localStorage.setItem('theme', !isDarkMode ? 'dark' : 'light'); };
 
-  const saveQrSettings = async (fg: string, bg: string) => {
-      const conf = { fg, bg };
+  const saveQrSettings = async (fg: string, bg: string, level: string) => {
+      const conf = { fg, bg, level };
       setQrConfig(conf);
       await localforage.setItem('qr_config', conf);
   };
@@ -36,7 +30,6 @@ export default function CipherVault() {
     <div className={`${isDarkMode ? 'dark' : ''}`}>
     <div className="max-w-2xl mx-auto min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors duration-300">
       
-      {/* Dynamic Header */}
       <div className="p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 flex items-center justify-between sticky top-0 z-50 print:hidden">
         <h1 className="text-2xl font-black flex items-center text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-emerald-600">
           <Shield className="mr-2 text-green-500" /> CipherVault
@@ -46,7 +39,6 @@ export default function CipherVault() {
         </button>
       </div>
 
-      {/* Main Content Area (State Preservation via CSS) */}
       <div className="flex-1 p-5 overflow-y-auto pb-24">
          <div className={activeTab === 'send' ? 'block' : 'hidden'}><SendTab qrConfig={qrConfig} /></div>
          <div className={activeTab === 'scan' ? 'block' : 'hidden'}><ScanTab isActive={activeTab === 'scan'} /></div>
@@ -54,7 +46,6 @@ export default function CipherVault() {
          <div className={activeTab === 'settings' ? 'block' : 'hidden'}><SettingsTab qrConfig={qrConfig} saveQrSettings={saveQrSettings} /></div>
       </div>
 
-      {/* Bottom Floating Navigation */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-gray-50 via-gray-50 dark:from-gray-950 dark:via-gray-950 to-transparent print:hidden pointer-events-none">
         <div className="max-w-md mx-auto bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border border-gray-200 dark:border-gray-800 rounded-3xl p-2 flex justify-between shadow-2xl pointer-events-auto">
             {['send', 'scan', 'history', 'settings'].map((tab) => (
@@ -68,7 +59,6 @@ export default function CipherVault() {
             ))}
         </div>
       </div>
-
     </div>
     </div>
   );
