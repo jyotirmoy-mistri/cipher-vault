@@ -9,24 +9,24 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest",
+    "next": "14.2.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "crypto-js": "^4.2.0",
     "qrcode.react": "^3.1.0",
     "html5-qrcode": "^2.3.8",
-    "lucide-react": "latest",
+    "lucide-react": "^0.378.0",
     "localforage": "^1.10.0",
-    "@ducanh2912/next-pwa": "latest"
+    "@ducanh2912/next-pwa": "^10.2.7"
   },
   "devDependencies": {
-    "typescript": "latest",
-    "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
+    "typescript": "^5.4.5",
+    "@types/node": "^20.12.11",
+    "@types/react": "^18.3.2",
+    "@types/react-dom": "^18.3.0",
     "@types/crypto-js": "^4.2.2",
-    "tailwindcss": "latest",
-    "postcss": "latest",
-    "autoprefixer": "latest"
+    "tailwindcss": "^3.4.3",
+    "postcss": "^8.4.38",
+    "autoprefixer": "^10.4.19"
   }
 }
