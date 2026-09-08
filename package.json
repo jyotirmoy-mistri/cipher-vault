@@ -1,0 +1,32 @@
+{
+  "name": "cipher-vault",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "crypto-js": "^4.2.0",
+    "qrcode.react": "^3.1.0",
+    "html5-qrcode": "^2.3.8",
+    "lucide-react": "latest",
+    "localforage": "^1.10.0",
+    "@ducanh2912/next-pwa": "latest"
+  },
+  "devDependencies": {
+    "typescript": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@types/crypto-js": "^4.2.2",
+    "tailwindcss": "latest",
+    "postcss": "latest",
+    "autoprefixer": "latest"
+  }
+}
