@@ -6,7 +6,7 @@ import JSZip from 'jszip';
 import { jsPDF } from 'jspdf';
 import { saveAs } from 'file-saver';
 import { encryptFile, createPuzzles, formatBytes } from '../utils/vaultLogic';
-// 🚀 FIX: Added 'Download' and 'Server' to the import list below
+import localforage from 'localforage';
 import { Camera, Image as ImageIcon, FileText, Type, CheckCircle, X, Video, FileAudio, Layers, Shield, FileArchive, Share2, ChevronLeft, ChevronRight, Edit3, Settings2, AlertCircle, Loader2, Minus, Maximize2, Mic, StopCircle, Zap, Cloud, WifiOff, Download, Server } from 'lucide-react';
 
 export default function SendTab({ qrConfig }: { qrConfig: any }) {
@@ -35,29 +35,50 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
 
+  // 🚀 FIX: Upgraded to LocalForage (IndexedDB) for Unlimited Draft Storage (Fixes 5MB Crash)
   useEffect(() => {
-      const savedSession = sessionStorage.getItem('cv_current_vault');
-      if (savedSession) { try { const data = JSON.parse(savedSession); setPuzzles(data.puzzles); setVaultName(data.vaultName); setStats(data.stats); } catch(e) {} }
+      localforage.getItem('cv_draft_vault').then((savedSession: any) => {
+          if (savedSession && savedSession.puzzles) {
+              setPuzzles(savedSession.puzzles); setVaultName(savedSession.vaultName); setStats(savedSession.stats);
+          }
+      }).catch(e => console.error("Draft load error:", e));
   }, []);
 
   useEffect(() => {
-      if (puzzles.length > 0) sessionStorage.setItem('cv_current_vault', JSON.stringify({ puzzles, vaultName, stats }));
-      else sessionStorage.removeItem('cv_current_vault');
+      if (puzzles.length > 0) {
+          // Wrapped in try/catch to ensure UI never breaks
+          localforage.setItem('cv_draft_vault', { puzzles, vaultName, stats }).catch(e => console.error("Draft save error:", e));
+      } else {
+          localforage.removeItem('cv_draft_vault').catch(e => console.error(e));
+      }
   }, [puzzles, vaultName, stats]);
 
   const handleFileUpload = async (e: any, type: string) => {
     const files = Array.from(e.target.files).slice(0, 3) as File[];
     if(files.length === 0) return;
     setInputType('file'); setIsProcessing(true);
-    const firstFile = files[0]; const ext = firstFile.name.split('.').pop() || 'file';
-    const base = firstFile.name.replace(`.${ext}`, '').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 10);
-    const prefix = firstFile.type.startsWith('image') ? 'IMG' : firstFile.type.startsWith('video') ? 'VID' : firstFile.type.startsWith('audio') ? 'AUD' : 'DOC';
-    setVaultName(files.length > 1 ? `MULTI_${prefix}_${Math.random().toString(36).substr(2, 4).toUpperCase()}_Vault` : `${prefix}_${base}_${Math.random().toString(36).substr(2, 4).toUpperCase()}_Vault`);
-    setPreviews(files.map(f => ({ type: f.type.split('/')[0], url: URL.createObjectURL(f), name: f.name })));
-    const readAsDataURL = (file: File) => new Promise<string>((resolve) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result as string); reader.readAsDataURL(file); });
-    const b64Array = await Promise.all(files.map(readAsDataURL));
-    setFileData(JSON.stringify({ isMulti: files.length > 1, data: b64Array }));
-    setIsProcessing(false); e.target.value = '';
+    
+    try {
+        const firstFile = files[0]; const ext = firstFile.name.split('.').pop() || 'file';
+        const base = firstFile.name.replace(`.${ext}`, '').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 10);
+        const prefix = firstFile.type.startsWith('image') ? 'IMG' : firstFile.type.startsWith('video') ? 'VID' : firstFile.type.startsWith('audio') ? 'AUD' : 'DOC';
+        setVaultName(files.length > 1 ? `MULTI_${prefix}_${Math.random().toString(36).substr(2, 4).toUpperCase()}_Vault` : `${prefix}_${base}_${Math.random().toString(36).substr(2, 4).toUpperCase()}_Vault`);
+        setPreviews(files.map(f => ({ type: f.type.split('/')[0], url: URL.createObjectURL(f), name: f.name })));
+        
+        const readAsDataURL = (file: File) => new Promise<string>((resolve, reject) => { 
+            const reader = new FileReader(); 
+            reader.onload = () => resolve(reader.result as string); 
+            reader.onerror = reject;
+            reader.readAsDataURL(file); 
+        });
+        
+        const b64Array = await Promise.all(files.map(readAsDataURL));
+        setFileData(JSON.stringify({ isMulti: files.length > 1, data: b64Array }));
+    } catch (err) {
+        alert("Failed to process file.");
+    } finally {
+        setIsProcessing(false); e.target.value = '';
+    }
   };
 
   const startAudioRecord = async () => {
@@ -81,17 +102,29 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
     let finalData = inputType === 'text' ? `TXT_MSG:${textData}` : fileData;
     if(!finalData || !password) return alert("Data & Password required!");
     if(inputType === 'text' && !vaultName) setVaultName(`TXT_SecretMsg_${Math.random().toString(36).substr(2, 4).toUpperCase()}`);
+    
     setIsProcessing(true);
     setTimeout(() => {
-        const fileId = "CV_" + Math.random().toString(36).substr(2, 6).toUpperCase();
-        const { encryptedData, originalSize, compressedSize, savedRatio } = encryptFile(finalData, password);
-        setStats({ originalSize, compressedSize, savedRatio });
-        setPuzzles(createPuzzles(encryptedData, fileId, density));
-        setSplitCount(1); setTempSplitCount(1); setCurrentPage(1); setIsProcessing(false);
+        try {
+            const fileId = "CV_" + Math.random().toString(36).substr(2, 6).toUpperCase();
+            const { encryptedData, originalSize, compressedSize, savedRatio } = encryptFile(finalData, password);
+            setStats({ originalSize, compressedSize, savedRatio });
+            setPuzzles(createPuzzles(encryptedData, fileId, density));
+            setSplitCount(1); setTempSplitCount(1); setCurrentPage(1);
+        } catch (error) {
+            alert("Encryption failed due to memory limits. Try a smaller file.");
+            console.error(error);
+        } finally {
+            setIsProcessing(false);
+        }
     }, 150);
   };
 
-  const clearSendForm = () => { setInputType('none'); setFileData(''); setTextData(''); setPassword(''); setPuzzles([]); setStats(null); setPreviews([]); setCurrentPage(1); setVaultName(''); setSplitCount(1); sessionStorage.removeItem('cv_current_vault'); };
+  const clearSendForm = () => { 
+      setInputType('none'); setFileData(''); setTextData(''); setPassword(''); setPuzzles([]); setStats(null); setPreviews([]); 
+      setCurrentPage(1); setVaultName(''); setSplitCount(1); 
+      localforage.removeItem('cv_draft_vault').catch(()=>{}); // Clear robust storage
+  };
 
   const saveSplitConfig = () => {
       if(tempSplitCount < 1) return alert("❌ Value must be 1 or greater.");
@@ -138,9 +171,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
               
               const content = await zip.generateAsync(
                   { type:"blob", compression: "STORE" }, 
-                  (metadata) => {
-                      setDlProgress(prev => ({ ...prev, msg: `Finalizing Export: ${metadata.percent.toFixed(0)}%`, percent: 50 + (metadata.percent / 2) }));
-                  }
+                  (metadata) => setDlProgress(prev => ({ ...prev, msg: `Finalizing Export: ${metadata.percent.toFixed(0)}%`, percent: 50 + (metadata.percent / 2) }))
               );
               saveAs(content, `${folderName}.zip`);
 
@@ -240,7 +271,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
                   <input type="number" min="1" max={puzzles.length} value={tempSplitCount} onChange={(e)=>setTempSplitCount(Number(e.target.value))} className="w-full p-4 text-center text-2xl font-black bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-xl mb-6 outline-none focus:border-green-500" />
                   <div className="flex space-x-3">
                       <button onClick={()=>setIsSplitModalOpen(false)} className="flex-1 p-4 bg-gray-200 dark:bg-gray-800 rounded-xl font-bold">Cancel</button>
-                      <button onClick={() => {if(tempSplitCount<1||tempSplitCount>puzzles.length)return alert("Invalid count!"); setSplitCount(tempSplitCount); setIsSplitModalOpen(false);}} className="flex-1 p-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold">Apply</button>
+                      <button onClick={saveSplitConfig} className="flex-1 p-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold">Apply</button>
                   </div>
               </div>
           </div>
