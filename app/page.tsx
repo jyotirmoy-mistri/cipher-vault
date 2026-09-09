@@ -12,14 +12,39 @@ export default function CipherVault() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [qrConfig, setQrConfig] = useState({ fg: '#000000', bg: '#ffffff', level: 'M' });
   
-  // Stealth Mode State
+  // Stealth Mode & Auto-Lock State
   const [isStealthLocked, setIsStealthLocked] = useState(false);
 
   useEffect(() => {
+    // 1. Load Settings
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'light') setIsDarkMode(false);
     localforage.getItem('qr_config').then((savedQr: any) => { if(savedQr) setQrConfig({...qrConfig, ...savedQr}); });
-  }, []);
+
+    // 2. Auto-Lock Timer (Advanced Security Feature)
+    let timeoutId: NodeJS.Timeout;
+    const resetTimer = () => {
+        clearTimeout(timeoutId);
+        // Lock app after 60 seconds of inactivity
+        timeoutId = setTimeout(() => setIsStealthLocked(true), 60000); 
+    };
+
+    // Listen to user activity to prevent lock
+    window.addEventListener('mousemove', resetTimer);
+    window.addEventListener('keydown', resetTimer);
+    window.addEventListener('touchstart', resetTimer);
+    window.addEventListener('scroll', resetTimer);
+    
+    resetTimer(); // Start timer on load
+
+    return () => {
+        clearTimeout(timeoutId);
+        window.removeEventListener('mousemove', resetTimer);
+        window.removeEventListener('keydown', resetTimer);
+        window.removeEventListener('touchstart', resetTimer);
+        window.removeEventListener('scroll', resetTimer);
+    };
+  }, [qrConfig]);
 
   const toggleTheme = () => { setIsDarkMode(!isDarkMode); localStorage.setItem('theme', !isDarkMode ? 'dark' : 'light'); };
 
@@ -29,12 +54,13 @@ export default function CipherVault() {
       await localforage.setItem('qr_config', conf);
   };
 
-  // Stealth Mode UI
+  // Stealth Mode UI (Double tap to unlock)
   if (isStealthLocked) {
       return (
-          <div className="min-h-screen bg-black flex flex-col items-center justify-center text-gray-800" onDoubleClick={() => setIsStealthLocked(false)}>
-              <Lock className="w-16 h-16 mb-4 opacity-20"/>
-              <p className="text-sm opacity-20 select-none">System Locked. Double tap to unlock.</p>
+          <div className="min-h-screen bg-black flex flex-col items-center justify-center text-gray-800 select-none" onDoubleClick={() => setIsStealthLocked(false)}>
+              <Lock className="w-16 h-16 mb-4 opacity-30 animate-pulse"/>
+              <p className="text-sm opacity-30 font-mono tracking-widest">SYSTEM SECURED</p>
+              <p className="text-xs opacity-20 mt-2">Double tap anywhere to unlock</p>
           </div>
       );
   }
@@ -43,6 +69,7 @@ export default function CipherVault() {
     <div className={`${isDarkMode ? 'dark' : ''}`}>
     <div className="max-w-2xl mx-auto min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors duration-300">
       
+      {/* Top Header - Double Tap to manually lock */}
       <div 
         onDoubleClick={() => setIsStealthLocked(true)}
         className="p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 flex items-center justify-between sticky top-0 z-50 print:hidden cursor-pointer select-none"
@@ -63,7 +90,7 @@ export default function CipherVault() {
          <div className={activeTab === 'settings' ? 'block' : 'hidden'}><SettingsTab qrConfig={qrConfig} saveQrSettings={saveQrSettings} /></div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-gray-50 via-gray-50 dark:from-gray-950 dark:via-gray-950 to-transparent print:hidden pointer-events-none z-50">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-gray-50 via-gray-50 dark:from-gray-950 dark:via-gray-950 to-transparent print:hidden pointer-events-none z-40">
         <div className="max-w-md mx-auto bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-200 dark:border-gray-800 rounded-3xl p-2 flex justify-between shadow-2xl pointer-events-auto">
             {['send', 'scan', 'history', 'settings'].map((tab) => (
                 <button key={tab} onClick={() => setActiveTab(tab)} 

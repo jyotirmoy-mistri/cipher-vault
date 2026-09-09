@@ -4,7 +4,8 @@ import { QRCodeSVG } from 'qrcode.react';
 import { encryptFile, createPuzzles, formatBytes } from '../utils/vaultLogic';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-import { Camera, Image as ImageIcon, FileText, Type, CheckCircle, Share2, Printer, X, Video, FileAudio, Download, TrendingDown, Layers } from 'lucide-react';
+// FIX: Shield icon is now imported correctly
+import { Camera, Image as ImageIcon, FileText, Type, CheckCircle, Share2, Printer, X, Video, FileAudio, Download, TrendingDown, Layers, Shield } from 'lucide-react';
 
 export default function SendTab({ qrConfig }: { qrConfig: any }) {
   const [inputType, setInputType] = useState<'none' | 'file' | 'text'>('none');
@@ -44,7 +45,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
         setPuzzles(createPuzzles(encryptedData, fileId, density));
         setIsGridOpen(true);
         setIsProcessing(false);
-    }, 500);
+    }, 150); // Optimized for faster UI response
   };
 
   const clearSendForm = () => { setInputType('none'); setFileData(''); setTextData(''); setPassword(''); setPuzzles([]); setStats(null); };
@@ -71,23 +72,23 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
     <div className="space-y-6 animate-in fade-in">
       {inputType === 'none' && (
           <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
-              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 transition-all">
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 transition-all shadow-sm">
                   <Camera className="w-6 h-6 text-blue-500 mb-2"/> <span className="text-xs font-bold text-center">Live Photo</span>
                   <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileUpload} />
               </label>
-              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 transition-all">
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 transition-all shadow-sm">
                   <Video className="w-6 h-6 text-red-500 mb-2"/> <span className="text-xs font-bold text-center">Live Video</span>
                   <input type="file" accept="video/*" capture="environment" className="hidden" onChange={handleFileUpload} />
               </label>
-              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 transition-all">
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 transition-all shadow-sm">
                   <ImageIcon className="w-6 h-6 text-pink-500 mb-2"/> <span className="text-xs font-bold text-center">Gallery</span>
                   <input type="file" accept="image/*, video/*" className="hidden" onChange={handleFileUpload} />
               </label>
-              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 transition-all">
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 transition-all shadow-sm">
                   <FileText className="w-6 h-6 text-orange-500 mb-2"/> <span className="text-xs font-bold text-center">Document</span>
                   <input type="file" accept=".pdf,.doc,.docx,.txt,.xls" className="hidden" onChange={handleFileUpload} />
               </label>
-              <button onClick={() => setInputType('text')} className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl hover:scale-105 transition-all col-span-3 md:col-span-4">
+              <button onClick={() => setInputType('text')} className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl hover:scale-105 transition-all col-span-3 md:col-span-4 shadow-sm">
                   <Type className="w-6 h-6 text-green-500 mb-2"/> <span className="text-xs font-bold">Secret Text Message</span>
               </button>
           </div>
@@ -128,10 +129,10 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
       {stats && puzzles.length > 0 && (
           <div className="p-4 bg-gradient-to-r from-blue-900/20 to-indigo-900/20 border border-blue-500/30 rounded-2xl flex justify-between items-center animate-in slide-in-from-top-4">
               <div>
-                  <p className="text-xs text-blue-400 font-bold uppercase tracking-wider">ZLIB Compression Stats</p>
-                  <p className="text-sm font-mono mt-1">Orig: {formatBytes(stats.originalSize)} ➔ New: {formatBytes(stats.compressedSize)}</p>
+                  <p className="text-xs text-blue-500 dark:text-blue-400 font-bold uppercase tracking-wider">Compression Stats</p>
+                  <p className="text-sm font-mono mt-1 text-gray-700 dark:text-gray-300">Orig: {formatBytes(stats.originalSize)} ➔ New: {formatBytes(stats.compressedSize)}</p>
               </div>
-              <div className="flex items-center text-green-500 font-black text-xl">
+              <div className="flex items-center text-green-600 dark:text-green-500 font-black text-xl">
                   <TrendingDown className="w-6 h-6 mr-1"/> {stats.savedRatio}%
               </div>
           </div>
@@ -140,7 +141,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
       {puzzles.length > 0 && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-              <h3 className="text-lg font-black text-green-500">Vault Generated ({puzzles.length} Puzzles)</h3>
+              <h3 className="text-lg font-black text-green-600 dark:text-green-500">Vault Generated ({puzzles.length} Puzzles)</h3>
               <div className="flex space-x-2">
                   <button onClick={() => setIsGridOpen(!isGridOpen)} className="px-3 py-2 bg-gray-200 dark:bg-gray-800 rounded-lg text-sm font-bold">{isGridOpen ? 'Fold' : 'Unfold'}</button>
                   <button onClick={clearSendForm} className="px-3 py-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-lg text-sm font-bold">Clear</button>
