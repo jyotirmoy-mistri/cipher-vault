@@ -6,7 +6,8 @@ import JSZip from 'jszip';
 import { jsPDF } from 'jspdf';
 import { saveAs } from 'file-saver';
 import { encryptFile, createPuzzles, formatBytes } from '../utils/vaultLogic';
-import { Camera, Image as ImageIcon, FileText, Type, CheckCircle, X, Video, FileAudio, Layers, Shield, FileArchive, Share2, ChevronLeft, ChevronRight, Edit3, Settings2, AlertCircle, Loader2, Minus, Maximize2, Mic, StopCircle, Zap, Cloud, WifiOff } from 'lucide-react';
+// 🚀 FIX: Added 'Download' and 'Server' to the import list below
+import { Camera, Image as ImageIcon, FileText, Type, CheckCircle, X, Video, FileAudio, Layers, Shield, FileArchive, Share2, ChevronLeft, ChevronRight, Edit3, Settings2, AlertCircle, Loader2, Minus, Maximize2, Mic, StopCircle, Zap, Cloud, WifiOff, Download, Server } from 'lucide-react';
 
 export default function SendTab({ qrConfig }: { qrConfig: any }) {
   const [inputType, setInputType] = useState<'none' | 'file' | 'text' | 'audio'>('none');
@@ -28,8 +29,6 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
   const itemsPerPage = 12; 
 
   const [confirmModal, setConfirmModal] = useState<{active: boolean, type: 'zip'|'pdf', groupIndex: number, group: string[]} | null>(null);
-  
-  // 🚀 FIX: Enhanced Progress State with Percentage Tracker
   const [dlProgress, setDlProgress] = useState({ active: false, current: 0, total: 0, msg: '', percent: 0, minimized: false });
 
   const [isRecording, setIsRecording] = useState(false);
@@ -46,7 +45,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
       else sessionStorage.removeItem('cv_current_vault');
   }, [puzzles, vaultName, stats]);
 
-  const handleFileUpload = async (e: any, type: string) => { /* omitted for brevity - works perfect */ 
+  const handleFileUpload = async (e: any, type: string) => {
     const files = Array.from(e.target.files).slice(0, 3) as File[];
     if(files.length === 0) return;
     setInputType('file'); setIsProcessing(true);
@@ -61,7 +60,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
     setIsProcessing(false); e.target.value = '';
   };
 
-  const startAudioRecord = async () => { /* omitted for brevity - works perfect */ 
+  const startAudioRecord = async () => {
       setInputType('audio');
       try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -104,7 +103,6 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
 
   const initiateDownload = (group: string[], groupIndex: number, type: 'zip'|'pdf') => setConfirmModal({ active: true, type, groupIndex, group });
 
-  // 🚀 THE ULTIMATE ANTI-FREEZE & NETWORK-AWARE DOWNLOAD ENGINE
   const executeDownload = async () => {
       if(!confirmModal) return;
       const { type, groupIndex, group } = confirmModal;
@@ -118,7 +116,6 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
           const folderName = splitCount > 1 ? `${vaultName}_Part_${groupIndex + 1}` : vaultName;
           const startIndex = splitCount > 1 ? (groupIndex * Math.ceil(puzzles.length / splitCount)) : 0;
           
-          // Smart Batching (Faster if online, bypass limits if backgrounded)
           const isOnline = navigator.onLine;
           const compileBatchSize = document.hidden ? 200 : (isOnline ? 30 : 10);
 
@@ -132,14 +129,13 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
                   
                   if (i % compileBatchSize === 0) {
                       setDlProgress(prev => ({ ...prev, current: i + 1, msg: `Compiling Secure QRs...`, percent: ((i+1)/group.length)*50 }));
-                      await new Promise(r => setTimeout(r, 0)); // Yield
+                      await new Promise(r => setTimeout(r, 0)); 
                   }
               }
               
               setDlProgress(prev => ({ ...prev, current: group.length, msg: `Packaging Archive...`, percent: 50 }));
               await new Promise(r => setTimeout(r, 50)); 
               
-              // 🚀 MAGIC: Use STORE compression to avoid 1529/1529 freezing bug! PNGs are already compressed.
               const content = await zip.generateAsync(
                   { type:"blob", compression: "STORE" }, 
                   (metadata) => {
@@ -198,7 +194,6 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
           </div>
       )}
 
-      {/* 🚀 BEAUTIFUL NEW DOWNLOAD PROGRESS UI */}
       {dlProgress.active && !dlProgress.minimized && (
           <div className="fixed inset-0 z-[70] bg-gray-50 dark:bg-black/95 backdrop-blur-3xl flex flex-col items-center justify-center p-6 text-center shadow-2xl">
               <button onClick={() => setDlProgress({...dlProgress, minimized: true})} className="absolute top-6 right-6 p-3 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 rounded-full transition-all text-gray-800 dark:text-white"><Minus className="w-6 h-6"/></button>
@@ -226,7 +221,6 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
           </div>
       )}
 
-      {/* MINIMIZED FLOATER */}
       {dlProgress.active && dlProgress.minimized && (
           <div onClick={() => setDlProgress({...dlProgress, minimized: false})} className="fixed top-24 right-4 z-[70] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-4 rounded-2xl shadow-2xl cursor-pointer hover:scale-105 flex items-center space-x-4">
               <Loader2 className="w-6 h-6 text-blue-500 animate-spin"/>
@@ -238,7 +232,6 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
           </div>
       )}
 
-      {/* DYNAMIC SPLIT MODAL */}
       {isSplitModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl w-full max-w-sm border border-gray-200 dark:border-gray-800 shadow-2xl">
