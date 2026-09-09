@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import localforage from 'localforage';
 import { decryptFile } from '../utils/vaultLogic';
-import { Download, Eye, Trash2, Copy, CheckCircle, Share2, Grid3X3, X, AlertTriangle } from 'lucide-react';
+import { Download, Eye, Trash2, Copy, CheckCircle, Share2, Grid3X3, X, AlertTriangle, Loader2 } from 'lucide-react';
 
 export default function HistoryTab({ isActive }: { isActive: boolean }) {
   const [scannedSessions, setScannedSessions] = useState<any>({});
@@ -10,47 +10,54 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
   const [previewData, setPreviewData] = useState<{type: string, data: string} | null>(null);
   const [matrixData, setMatrixData] = useState<{id: string, total: number, chunks: any} | null>(null);
   const [isMissingFolded, setIsMissingFolded] = useState<{ [key: string]: boolean }>({});
+  const [copied, setCopied] = useState(false);
+  
+  // 🚀 FIX: Added Loading state for heavy decryption
+  const [isDecrypting, setIsDecrypting] = useState(false);
 
   useEffect(() => { if(isActive) loadHistory(); }, [isActive]);
   const loadHistory = async () => { setScannedSessions(await localforage.getItem('scan_history') || {}); };
 
   const handleAction = (fileId: string, action: 'view' | 'download') => {
-      // (Omitted for brevity - EXACT SAME AS BEFORE)
-      const session = scannedSessions[fileId];
-      let assembled = ""; for(let i=1; i<=session.total; i++) assembled += session.chunks[i];
-      const decrypted = decryptFile(assembled, unlockPassword);
-      if(!decrypted) return alert("❌ Wrong Password!");
-      
-      if(action === 'view') {
-          if(decrypted.startsWith("TXT_MSG:")) setPreviewData({type: 'text', data: decrypted.replace("TXT_MSG:", "")});
-          else {
-              try {
-                  const parsed = JSON.parse(decrypted); 
-                  if (parsed.data && parsed.data.length > 0) {
-                      const firstItem = parsed.data[0];
-                      if(firstItem.startsWith("data:image")) setPreviewData({type: 'image', data: firstItem});
-                      else if(firstItem.startsWith("data:video")) setPreviewData({type: 'video', data: firstItem});
-                      else alert("Cannot preview this document type. Please download.");
-                  }
-              } catch(e) {}
-          }
-      } else {
-          // Download...
-          if(decrypted.startsWith("TXT_MSG:")) {
-              const text = decrypted.replace("TXT_MSG:", "");
-              const a = document.createElement('a'); a.href = "data:text/plain;charset=utf-8," + encodeURIComponent(text); a.download = `SecretMsg_${fileId}.txt`; a.click();
+      setIsDecrypting(true);
+      setTimeout(() => {
+          const session = scannedSessions[fileId];
+          let assembled = ""; for(let i=1; i<=session.total; i++) assembled += session.chunks[i];
+          const decrypted = decryptFile(assembled, unlockPassword);
+          setIsDecrypting(false);
+
+          if(!decrypted) return alert("❌ Wrong Password!");
+          
+          if(action === 'view') {
+              if(decrypted.startsWith("TXT_MSG:")) setPreviewData({type: 'text', data: decrypted.replace("TXT_MSG:", "")});
+              else {
+                  try {
+                      const parsed = JSON.parse(decrypted); 
+                      if (parsed.data && parsed.data.length > 0) {
+                          const firstItem = parsed.data[0];
+                          if(firstItem.startsWith("data:image")) setPreviewData({type: 'image', data: firstItem});
+                          else if(firstItem.startsWith("data:video")) setPreviewData({type: 'video', data: firstItem});
+                          else alert("Cannot preview this document type. Please download.");
+                      }
+                  } catch(e) {}
+              }
           } else {
-              try {
-                  const parsed = JSON.parse(decrypted);
-                  if (parsed.data) {
-                      parsed.data.forEach((dataUrl: string, idx: number) => {
-                          const ext = dataUrl.split(';')[0].split('/')[1] || 'bin';
-                          const a = document.createElement('a'); a.href = dataUrl; a.download = parsed.isMulti ? `Vault_${fileId}_File${idx + 1}.${ext}` : `Vault_${fileId}.${ext}`; a.click();
-                      });
-                  }
-              } catch(e) { }
+              if(decrypted.startsWith("TXT_MSG:")) {
+                  const text = decrypted.replace("TXT_MSG:", "");
+                  const a = document.createElement('a'); a.href = "data:text/plain;charset=utf-8," + encodeURIComponent(text); a.download = `SecretMsg_${fileId}.txt`; a.click();
+              } else {
+                  try {
+                      const parsed = JSON.parse(decrypted);
+                      if (parsed.data) {
+                          parsed.data.forEach((dataUrl: string, idx: number) => {
+                              const ext = dataUrl.split(';')[0].split('/')[1] || 'bin';
+                              const a = document.createElement('a'); a.href = dataUrl; a.download = parsed.isMulti ? `Vault_${fileId}_File${idx + 1}.${ext}` : `Vault_${fileId}.${ext}`; a.click();
+                          });
+                      }
+                  } catch(e) { }
+              }
           }
-      }
+      }, 50); // Yield to show loading spinner
   };
 
   const handleDelete = async (fileId: string) => {
@@ -59,14 +66,23 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
       setScannedSessions(newSessions); await localforage.setItem('scan_history', newSessions);
   };
 
-  const toggleFold = (id: string) => setIsMissingFolded(prev => ({ ...prev, [id]: !prev[id] }));
+  const copyToClipboard = async (text: string) => { try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch (e) {} };
+  const shareText = async (text: string) => { if (navigator.share) { try { await navigator.share({ title: 'CipherVault Message', text: text }); } catch(e) {} } else { copyToClipboard(text); alert("Sharing not supported. Copied!"); } };
 
   return (
     <div className="space-y-5 animate-in fade-in pb-10">
-      <h2 className="text-xl font-bold">Vault Assembly (History)</h2>
-      {Object.keys(scannedSessions).length === 0 && <p className="text-center text-gray-500 mt-10">No parts scanned yet.</p>}
       
-      {/* 🚀 BEAUTIFUL PUZZLE MATRIX MODAL */}
+      {isDecrypting && (
+          <div className="fixed inset-0 z-[120] bg-white/80 dark:bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-4">
+              <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4"/>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Decrypting Data...</h2>
+              <p className="text-sm text-gray-500">Unlocking secure vault segments.</p>
+          </div>
+      )}
+
+      <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Vault Assembly (History)</h2>
+      {Object.keys(scannedSessions).length === 0 && <p className="text-center text-gray-500 mt-10 font-bold">No parts scanned yet.</p>}
+      
       {matrixData && (
           <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4">
               <div className="bg-gray-900 border border-gray-700 rounded-3xl p-6 max-w-md w-full shadow-2xl relative overflow-hidden">
@@ -94,12 +110,20 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
           </div>
       )}
 
-      {/* Preview Modal... (Same as before) */}
       {previewData && (
           <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-4">
               <button onClick={()=>setPreviewData(null)} className="absolute top-6 right-6 text-white bg-gray-800 hover:bg-gray-700 p-3 rounded-full transition-all">Close</button>
               {previewData.type === 'text' && (
                   <div className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-6 rounded-3xl max-w-lg w-full border border-gray-200 dark:border-gray-800 shadow-2xl relative">
+                      <div className="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-gray-800 pb-4">
+                          <h3 className="font-bold text-lg text-green-600">Decrypted Message</h3>
+                          <div className="flex space-x-2">
+                              <button onClick={() => shareText(previewData.data)} className="flex items-center text-xs font-bold bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400 px-3 py-2 rounded-lg transition-all"><Share2 className="w-4 h-4 mr-1"/> Share</button>
+                              <button onClick={() => copyToClipboard(previewData.data)} className="flex items-center text-xs font-bold bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg hover:bg-gray-200 transition-all">
+                                  {copied ? <><CheckCircle className="w-4 h-4 mr-1 text-green-500"/> Copied</> : <><Copy className="w-4 h-4 mr-1"/> Copy</>}
+                              </button>
+                          </div>
+                      </div>
                       <p className="whitespace-pre-wrap font-mono text-sm leading-relaxed max-h-[60vh] overflow-y-auto">{previewData.data}</p>
                   </div>
               )}
@@ -118,12 +142,12 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
            <div key={fileId} className="p-5 bg-white dark:bg-gray-900 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm relative transition-all">
               <button onClick={() => handleDelete(fileId)} className="absolute top-5 right-5 text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-5 h-5"/></button>
               <div className="mb-3">
-                  <p className="text-xs font-mono text-gray-500 tracking-wider">VAULT_ID: {fileId}</p>
+                  <p className="text-xs font-mono text-gray-500 tracking-wider font-bold">VAULT_ID: {fileId}</p>
                   <span className={`inline-block mt-2 text-xs font-bold px-3 py-1 rounded-full ${isComplete ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400 border border-green-200 dark:border-green-800' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-400 border border-orange-200 dark:border-orange-800'}`}>
                       {isComplete ? 'Decryption Ready' : 'Assembly Incomplete'}
                   </span>
               </div>
-              <p className="font-black text-2xl mb-4">{currentScanned} <span className="text-lg text-gray-500 font-medium">/ {session.total} Parts</span></p>
+              <p className="font-black text-2xl mb-4 text-gray-900 dark:text-white">{currentScanned} <span className="text-lg text-gray-500 font-medium">/ {session.total} Parts</span></p>
               
               {isComplete ? (
                 <div className="flex space-x-2 bg-gray-50 dark:bg-gray-950 p-2 rounded-2xl border border-gray-200 dark:border-gray-800">
@@ -137,7 +161,7 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
                         <Grid3X3 className="w-4 h-4 mr-2"/> View Puzzle Matrix
                     </button>
                     
-                    <div className="flex justify-between items-center cursor-pointer" onClick={() => toggleFold(fileId)}>
+                    <div className="flex justify-between items-center cursor-pointer" onClick={() => setIsMissingFolded(prev => ({ ...prev, [fileId]: !prev[fileId] }))}>
                         <p className="text-xs font-bold text-orange-500 flex items-center"><AlertTriangle className="w-3 h-3 mr-1"/> Missing {missingParts.length} Fragments</p>
                         <p className="text-xs text-blue-500 font-bold hover:underline">{isMissingFolded[fileId] ? 'Show List' : 'Hide List'}</p>
                     </div>
