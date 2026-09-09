@@ -17,23 +17,51 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
   const handleAction = (fileId: string, action: 'view' | 'download') => {
     const session = scannedSessions[fileId];
     if(Object.keys(session.chunks).length < session.total) return alert("Puzzles incomplete!");
+    
     let assembled = "";
     for(let i=1; i<=session.total; i++) assembled += session.chunks[i];
+    
     const decrypted = decryptFile(assembled, unlockPassword);
     if(!decrypted) return alert("❌ Wrong Password!");
     
     if(action === 'view') {
-        if(decrypted.startsWith("TXT_MSG:")) setPreviewData({type: 'text', data: decrypted.replace("TXT_MSG:", "")});
-        else if(decrypted.startsWith("data:image")) setPreviewData({type: 'image', data: decrypted});
-        else if(decrypted.startsWith("data:video")) setPreviewData({type: 'video', data: decrypted});
-        else alert("Cannot preview this file type. Please download.");
+        if(decrypted.startsWith("TXT_MSG:")) {
+            setPreviewData({type: 'text', data: decrypted.replace("TXT_MSG:", "")});
+        } else {
+            try {
+                const parsed = JSON.parse(decrypted); // Handle Multi-File JSON
+                if (parsed.data && parsed.data.length > 0) {
+                    const firstItem = parsed.data[0];
+                    if(firstItem.startsWith("data:image")) setPreviewData({type: 'image', data: firstItem});
+                    else if(firstItem.startsWith("data:video")) setPreviewData({type: 'video', data: firstItem});
+                    else if(firstItem.startsWith("data:audio")) setPreviewData({type: 'audio', data: firstItem});
+                    else alert("Cannot preview this document type. Please download.");
+                }
+            } catch(e) {
+                alert("Cannot preview this vault. It might be corrupt.");
+            }
+        }
     } else {
-        const ext = decrypted.split(';')[0].split('/')[1] || 'bin';
-        const fileName = window.prompt("Enter file name for download:", `Decrypted_${fileId}`);
-        if(fileName) {
-            const finalName = fileName.includes('.') ? fileName : `${fileName}.${ext}`;
-            const a = document.createElement('a'); a.href = decrypted.replace("TXT_MSG:", "data:text/plain;charset=utf-8,"); 
-            a.download = finalName; a.click();
+        // Download Logic
+        if(decrypted.startsWith("TXT_MSG:")) {
+            const text = decrypted.replace("TXT_MSG:", "");
+            const a = document.createElement('a');
+            a.href = "data:text/plain;charset=utf-8," + encodeURIComponent(text);
+            a.download = `SecretMsg_${fileId}.txt`;
+            a.click();
+        } else {
+            try {
+                const parsed = JSON.parse(decrypted);
+                if (parsed.data) {
+                    parsed.data.forEach((dataUrl: string, idx: number) => {
+                        const ext = dataUrl.split(';')[0].split('/')[1] || 'bin';
+                        const a = document.createElement('a'); 
+                        a.href = dataUrl;
+                        a.download = parsed.isMulti ? `Vault_${fileId}_File${idx + 1}.${ext}` : `Vault_${fileId}.${ext}`;
+                        a.click();
+                    });
+                }
+            } catch(e) { alert("Download failed. Corrupt data structure."); }
         }
     }
   };
@@ -43,12 +71,8 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
   };
 
   const shareText = async (text: string) => {
-      if (navigator.share) {
-          try { await navigator.share({ title: 'CipherVault Message', text: text }); } catch(e) {}
-      } else {
-          copyToClipboard(text);
-          alert("Sharing not supported. Text copied instead!");
-      }
+      if (navigator.share) { try { await navigator.share({ title: 'CipherVault Message', text: text }); } catch(e) {} } 
+      else { copyToClipboard(text); alert("Sharing not supported. Text copied instead!"); }
   };
 
   const handleDelete = (fileId: string) => {
@@ -80,7 +104,7 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
       {Object.keys(scannedSessions).length === 0 && <p className="text-center text-gray-500 mt-10">No parts scanned yet.</p>}
       
       {previewData && (
-          <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-4">
+          <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-4">
               <button onClick={()=>setPreviewData(null)} className="absolute top-6 right-6 text-white bg-gray-800 hover:bg-gray-700 p-3 rounded-full transition-all">Close</button>
               
               {previewData.type === 'text' && (
@@ -99,6 +123,7 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
               )}
               {previewData.type === 'image' && <img src={previewData.data} className="max-w-full max-h-[80vh] rounded-2xl shadow-2xl" />}
               {previewData.type === 'video' && <video src={previewData.data} controls className="max-w-full max-h-[80vh] rounded-2xl shadow-2xl" autoPlay />}
+              {previewData.type === 'audio' && <audio src={previewData.data} controls className="w-full max-w-sm shadow-2xl" autoPlay />}
           </div>
       )}
 
@@ -127,9 +152,9 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
               
               {isComplete ? (
                 <div className="flex space-x-2">
-                  <input type="password" placeholder="Password" onChange={(e)=>setUnlockPassword(e.target.value)} className="flex-1 p-3 bg-gray-50 dark:bg-gray-950 rounded-xl border border-gray-300 dark:border-gray-700 outline-none" />
-                  <button onClick={() => handleAction(fileId, 'view')} className="px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors"><Eye className="w-5 h-5"/></button>
-                  <button onClick={() => handleAction(fileId, 'download')} className="px-4 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors"><Download className="w-5 h-5"/></button>
+                  <input type="password" placeholder="Password" onChange={(e)=>setUnlockPassword(e.target.value)} className="flex-1 p-3 bg-gray-50 dark:bg-gray-950 rounded-xl border border-gray-300 dark:border-gray-700 outline-none font-bold" />
+                  <button onClick={() => handleAction(fileId, 'view')} className="px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors shadow-sm"><Eye className="w-5 h-5"/></button>
+                  <button onClick={() => handleAction(fileId, 'download')} className="px-4 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors shadow-sm"><Download className="w-5 h-5"/></button>
                 </div>
               ) : (
                 <p className="text-xs text-orange-500">Missing parts: {Array.from({length: session.total}, (_, i) => i+1).filter(i => !session.chunks[i]).join(', ')}</p>
