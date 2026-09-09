@@ -2,31 +2,28 @@
 import React, { useState, useEffect, useRef } from 'react';
 import localforage from 'localforage';
 import { decryptFile } from '../utils/vaultLogic';
-import { Download, Eye, Trash2, Copy, CheckCircle, Share2, Grid3X3, X, AlertTriangle, Loader2, LockOpen, Zap, ShieldCheck } from 'lucide-react';
+// 🚀 FIX: Added 'Layers' to the import list below!
+import { Download, Eye, Trash2, Copy, CheckCircle, Share2, Grid3X3, X, AlertTriangle, Loader2, LockOpen, Zap, ShieldCheck, Layers } from 'lucide-react';
 
 export default function HistoryTab({ isActive }: { isActive: boolean }) {
-  // 🚀 FIX: Memory Leak Solved! Only storing numbers/metadata, not heavy Base64 chunks!
   const [vaultMeta, setVaultMeta] = useState<{ [key: string]: { total: number, current: number, isComplete: boolean } }>({});
   
   const [unlockPassword, setUnlockPassword] = useState('');
   const [previewData, setPreviewData] = useState<{type: string, data: string} | null>(null);
   
-  // Matrix and Missing States (Loaded dynamically only when needed)
   const [matrixData, setMatrixData] = useState<{id: string, total: number, chunks: any} | null>(null);
   const [missingData, setMissingData] = useState<{ id: string, parts: number[] } | null>(null);
   
   const [undoItem, setUndoItem] = useState<{id: string, data: any, timeout: any} | null>(null);
   const [copied, setCopied] = useState(false);
   
-  // 🚀 ADVANCED DECRYPTION UI STATE
   const [decryptStatus, setDecryptStatus] = useState({ active: false, msg: '', percent: 0 });
 
-  // 🚀 FEATURE: Real-time Live Polling Engine
   useEffect(() => {
       let interval: NodeJS.Timeout;
       if(isActive) {
-          loadMetadata(); // Initial load
-          interval = setInterval(loadMetadata, 1000); // Live update every 1 second
+          loadMetadata();
+          interval = setInterval(loadMetadata, 1000);
       }
       return () => clearInterval(interval);
   }, [isActive]);
@@ -46,10 +43,9 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
       setVaultMeta(meta);
   };
 
-  // 🚀 ULTRA-FAST DECRYPTION ENGINE
   const handleAction = async (fileId: string, action: 'view' | 'download') => {
       setDecryptStatus({ active: true, msg: 'Initializing Decryption Engine...', percent: 10 });
-      await new Promise(r => setTimeout(r, 100)); // Yield to UI
+      await new Promise(r => setTimeout(r, 100)); 
       
       try {
           setDecryptStatus({ active: true, msg: 'Loading Fragments from Secure Vault...', percent: 30 });
@@ -58,14 +54,13 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
           await new Promise(r => setTimeout(r, 50));
           
           setDecryptStatus({ active: true, msg: 'Assembling Code Blocks...', percent: 50 });
-          // 🚀 SPEED FIX: Using Array.join instead of string concatenation (5x Faster)
           const parts = [];
           for(let i=1; i<=session.total; i++) parts.push(session.chunks[i]);
           const assembled = parts.join('');
           await new Promise(r => setTimeout(r, 50));
           
           setDecryptStatus({ active: true, msg: 'Decrypting AES-256 & Decompressing ZLIB...', percent: 80 });
-          await new Promise(r => setTimeout(r, 50)); // Allow UI to paint before heavy thread blocking
+          await new Promise(r => setTimeout(r, 50)); 
           
           const decrypted = decryptFile(assembled, unlockPassword);
           if(!decrypted) {
@@ -111,7 +106,6 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
       setDecryptStatus({ active: false, msg: '', percent: 0 });
   };
 
-  // Dynamic loaders for heavy Matrix/Missing tasks
   const openMatrix = async (fileId: string) => {
       const history: any = await localforage.getItem('scan_history');
       setMatrixData({ id: fileId, total: history[fileId].total, chunks: history[fileId].chunks });
@@ -119,7 +113,7 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
 
   const toggleMissingList = async (fileId: string, total: number) => {
       if (missingData?.id === fileId) {
-          setMissingData(null); // Close it
+          setMissingData(null); 
       } else {
           const history: any = await localforage.getItem('scan_history');
           const chunks = history[fileId].chunks;
@@ -137,7 +131,7 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
       const deletedData = history[fileId];
       delete history[fileId];
       await localforage.setItem('scan_history', history);
-      loadMetadata(); // Instant UI update
+      loadMetadata(); 
 
       const timeout = setTimeout(() => { setUndoItem(null); }, 4000);
       setUndoItem({ id: fileId, data: deletedData, timeout });
@@ -157,7 +151,6 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
   return (
     <div className="space-y-5 animate-in fade-in pb-10">
       
-      {/* 🚀 CYBERPUNK DECRYPTION ANIMATION */}
       {decryptStatus.active && (
           <div className="fixed inset-0 z-[120] bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-6 text-center shadow-2xl transition-all">
               <div className="relative mb-10 flex justify-center items-center">
@@ -179,11 +172,11 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
           </div>
       )}
 
-      {/* Vault Assembly Header */}
+      {/* 🚀 FIX: Layers icon is now successfully imported and won't crash */}
       <h2 className="text-xl font-black text-gray-800 dark:text-gray-100 flex items-center"><Layers className="w-6 h-6 mr-2 text-blue-500"/> Real-time Vault Assembly</h2>
+      
       {Object.keys(vaultMeta).length === 0 && <p className="text-center text-gray-500 mt-10 font-bold">No parts scanned yet.</p>}
       
-      {/* Matrix Modal */}
       {matrixData && (
           <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4">
               <div className="bg-gray-900 border border-gray-700 rounded-3xl p-6 max-w-md w-full shadow-2xl relative overflow-hidden">
@@ -208,7 +201,6 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
           </div>
       )}
 
-      {/* Preview Modal */}
       {previewData && (
           <div className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-4">
               <button onClick={()=>setPreviewData(null)} className="absolute top-6 right-6 text-white bg-gray-800 hover:bg-gray-700 p-3 rounded-full transition-all">Close</button>
@@ -257,7 +249,6 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
                   {meta.current} <span className="text-lg text-gray-500 font-medium ml-2">/ {meta.total} Parts</span>
               </p>
               
-              {/* Dynamic Loading Bar */}
               <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-1.5 mb-5 overflow-hidden">
                   <div className={`h-full transition-all duration-500 ${meta.isComplete ? 'bg-green-500' : 'bg-orange-500'}`} style={{ width: `${(meta.current / meta.total) * 100}%` }}></div>
               </div>
