@@ -6,7 +6,7 @@ import JSZip from 'jszip';
 import { jsPDF } from 'jspdf';
 import { saveAs } from 'file-saver';
 import { encryptFile, createPuzzles, formatBytes } from '../utils/vaultLogic';
-import { Camera, Image as ImageIcon, FileText, Type, CheckCircle, X, Video, FileAudio, Layers, Shield, FileArchive, Share2, ChevronLeft, ChevronRight, Edit3, Settings2, AlertCircle, Server, Zap, Minus, Maximize2 } from 'lucide-react';
+import { Camera, Image as ImageIcon, FileText, Type, CheckCircle, X, Video, FileAudio, Layers, Shield, FileArchive, Share2, ChevronLeft, ChevronRight, Edit3, Settings2, Download, AlertCircle, Loader2, Minus, Maximize2, Mic, StopCircle, Server, Zap } from 'lucide-react';
 
 export default function SendTab({ qrConfig }: { qrConfig: any }) {
   const [inputType, setInputType] = useState<'none' | 'file' | 'text' | 'audio'>('none');
@@ -30,7 +30,11 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
   const [confirmModal, setConfirmModal] = useState<{active: boolean, type: 'zip'|'pdf', groupIndex: number, group: string[]} | null>(null);
   const [dlProgress, setDlProgress] = useState({ active: false, current: 0, total: 0, msg: '', minimized: false });
 
-  // 🚀 FEATURE: Session Persistence (Survive Page Refresh)
+  // 🚀 FIX: Restored Audio Recording States
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorder = useRef<MediaRecorder | null>(null);
+  const audioChunks = useRef<Blob[]>([]);
+
   useEffect(() => {
       const savedSession = sessionStorage.getItem('cv_current_vault');
       if (savedSession) {
@@ -73,6 +77,32 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
     e.target.value = '';
   };
 
+  // 🚀 FIX: Restored Audio Recording Functions
+  const startAudioRecord = async () => {
+      setInputType('audio');
+      try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder.current = new MediaRecorder(stream);
+          audioChunks.current = [];
+          mediaRecorder.current.ondataavailable = e => audioChunks.current.push(e.data);
+          mediaRecorder.current.onstop = async () => {
+              const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' });
+              const url = URL.createObjectURL(audioBlob);
+              setPreviews([{ type: 'audio', url, name: 'Live_Audio_Record.webm' }]);
+              const reader = new FileReader();
+              reader.onload = () => setFileData(JSON.stringify({ isMulti: false, data: [reader.result] }));
+              reader.readAsDataURL(audioBlob);
+              setVaultName(`AUD_Record_${Math.random().toString(36).substr(2, 4).toUpperCase()}_Vault`);
+          };
+          mediaRecorder.current.start();
+          setIsRecording(true);
+      } catch (err) { alert("Microphone access denied!"); setInputType('none'); }
+  };
+
+  const stopAudioRecord = () => {
+      if(mediaRecorder.current) { mediaRecorder.current.stop(); setIsRecording(false); }
+  };
+
   const handleEncrypt = () => {
     let finalData = inputType === 'text' ? `TXT_MSG:${textData}` : fileData;
     if(!finalData || !password) return alert("Data & Password required!");
@@ -94,11 +124,17 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
       setCurrentPage(1); setVaultName(''); setSplitCount(1); sessionStorage.removeItem('cv_current_vault');
   };
 
+  const saveSplitConfig = () => {
+      if(tempSplitCount < 1) return alert("❌ Value must be 1 or greater.");
+      if(tempSplitCount > puzzles.length) return alert(`❌ Maximum value is ${puzzles.length}.`);
+      setSplitCount(tempSplitCount); setIsSplitModalOpen(false);
+  };
+
   const puzzleGroups = splitCount <= 1 ? [puzzles] : Array.from({ length: Math.ceil(puzzles.length / Math.ceil(puzzles.length / splitCount)) }, (v, i) => puzzles.slice(i * Math.ceil(puzzles.length / splitCount), i * Math.ceil(puzzles.length / splitCount) + Math.ceil(puzzles.length / splitCount)));
 
   const initiateDownload = (group: string[], groupIndex: number, type: 'zip'|'pdf') => setConfirmModal({ active: true, type, groupIndex, group });
 
-  // 🚀 FEATURE: Super-Fast Anti-Throttling Download Engine
+  // Advanced Anti-Freeze Engine
   const executeDownload = async () => {
       if(!confirmModal) return;
       const { type, groupIndex, group } = confirmModal;
@@ -107,7 +143,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
 
       let wakeLock: any = null;
       try {
-          if ('wakeLock' in navigator) wakeLock = await (navigator as any).wakeLock.request('screen'); // Keep screen awake
+          if ('wakeLock' in navigator) wakeLock = await (navigator as any).wakeLock.request('screen');
           
           const folderName = splitCount > 1 ? `${vaultName}_Part_${groupIndex + 1}` : vaultName;
           const startIndex = splitCount > 1 ? (groupIndex * Math.ceil(puzzles.length / splitCount)) : 0;
@@ -119,14 +155,13 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
                   const dataUrl = await QRCode.toDataURL(group[i], { errorCorrectionLevel: qrConfig.level as any, margin: qrConfig.margin, color: { dark: qrConfig.fg, light: qrConfig.bg }});
                   folder?.file(`QR_${startIndex + i + 1}.png`, dataUrl.replace(/^data:image\/png;base64,/, ""), {base64: true});
                   
-                  // SMART BATCHING: If app is minimized, process 100 at a time to bypass browser limits. If open, update UI every 10 items.
                   const batchSize = document.hidden ? 100 : 15;
                   if (i % batchSize === 0) {
                       setDlProgress(prev => ({ ...prev, current: i + 1, msg: `Compiling QRs...` }));
                       await new Promise(r => setTimeout(r, 0));
                   }
               }
-              setDlProgress(prev => ({ ...prev, current: group.length, msg: `Compressing Data Archive...` }));
+              setDlProgress(prev => ({ ...prev, current: group.length, msg: `Compressing Archive...` }));
               await new Promise(r => setTimeout(r, 50)); 
               const content = await zip.generateAsync({type:"blob"});
               saveAs(content, `${folderName}.zip`);
@@ -155,10 +190,8 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
               await new Promise(r => setTimeout(r, 50));
               pdf.save(splitCount > 1 ? `${vaultName}_PrintBundle_${groupIndex + 1}.pdf` : `${vaultName}_PrintBundle.pdf`);
           }
-      } catch (err) { 
-          alert(`Failed to complete download. Error processing massive data.`); 
-      } finally {
-          // GUARANTEED TO RUN: Closes the loading animation
+      } catch (err) { alert(`Failed to complete download.`); } 
+      finally {
           if (wakeLock !== null) wakeLock.release().catch(()=>{});
           setDlProgress({ active: false, current: 0, total: 0, msg: '', minimized: false });
       }
@@ -170,13 +203,13 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
   return (
     <div className="space-y-6 animate-in fade-in">
       
-      {/* CONFIRMATION MODAL */}
+      {/* CONFIRM MODAL */}
       {confirmModal && (
           <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl w-full max-w-sm border border-gray-200 dark:border-gray-800 shadow-2xl text-center">
                   <div className="flex justify-center mb-4"><AlertCircle className="w-12 h-12 text-blue-500"/></div>
                   <h3 className="text-xl font-bold mb-2">Confirm Data Export</h3>
-                  <p className="text-sm text-gray-500 mb-6">Generating <strong>{confirmModal.group.length} Secured QRs</strong> into a <strong>{confirmModal.type.toUpperCase()}</strong> file format. This process runs securely offline.</p>
+                  <p className="text-sm text-gray-500 mb-6">Generating <strong>{confirmModal.group.length} Secured QRs</strong> into a <strong>{confirmModal.type.toUpperCase()}</strong> file format. Runs completely offline.</p>
                   <div className="flex space-x-3">
                       <button onClick={()=>setConfirmModal(null)} className="flex-1 p-3 bg-gray-200 dark:bg-gray-800 rounded-xl font-bold">Cancel</button>
                       <button onClick={executeDownload} className="flex-1 p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold">Start Export</button>
@@ -185,30 +218,24 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
           </div>
       )}
 
-      {/* 🚀 BEAUTIFUL NEW DOWNLOAD PROGRESS UI */}
+      {/* DOWNLOAD PROGRESS UI */}
       {dlProgress.active && !dlProgress.minimized && (
           <div className="fixed inset-0 z-[70] bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-6 text-center">
               <button onClick={() => setDlProgress({...dlProgress, minimized: true})} className="absolute top-6 right-6 p-3 bg-gray-800 hover:bg-gray-700 rounded-full text-white transition-all"><Minus className="w-6 h-6"/></button>
-              
               <div className="relative mb-8">
                   <div className="absolute inset-0 bg-blue-500 blur-3xl opacity-20 rounded-full"></div>
                   <Server className="w-20 h-20 text-blue-400 relative z-10 animate-pulse"/>
                   <Zap className="w-8 h-8 text-green-400 absolute bottom-0 right-0 animate-bounce z-20"/>
               </div>
-
               <h2 className="text-2xl font-black text-white mb-2">{dlProgress.msg}</h2>
               <p className="text-blue-400 font-mono text-xl mb-8 tracking-widest">{dlProgress.current} <span className="text-gray-500 text-sm">/ {dlProgress.total}</span></p>
-              
               <div className="w-full max-w-sm bg-gray-900 rounded-full h-3 overflow-hidden border border-gray-800 shadow-inner relative">
-                  <div className="bg-gradient-to-r from-blue-600 via-green-400 to-emerald-400 h-full transition-all duration-300 relative overflow-hidden" style={{ width: `${(dlProgress.current / dlProgress.total) * 100 || 0}%` }}>
-                      <div className="absolute top-0 bottom-0 left-0 right-0 bg-white/20 -skew-x-12 translate-x-[-100%] animate-[shimmer_1s_infinite]"></div>
-                  </div>
+                  <div className="bg-gradient-to-r from-blue-600 via-green-400 to-emerald-400 h-full transition-all duration-300" style={{ width: `${(dlProgress.current / dlProgress.total) * 100 || 0}%` }}></div>
               </div>
-              <p className="text-gray-400 text-xs mt-6 bg-gray-900 border border-gray-800 px-4 py-2 rounded-xl flex items-center"><Shield className="w-3 h-3 mr-2"/> Encrypted Processing Active (Offline)</p>
           </div>
       )}
 
-      {/* MINIMIZED FLOATER */}
+      {/* MINIMIZED DOWNLOAD UI */}
       {dlProgress.active && dlProgress.minimized && (
           <div onClick={() => setDlProgress({...dlProgress, minimized: false})} className="fixed top-24 right-4 z-[70] bg-gray-900 border border-gray-700 p-4 rounded-2xl shadow-2xl cursor-pointer hover:scale-105 flex items-center space-x-4">
               <Server className="w-6 h-6 text-blue-400 animate-pulse"/>
@@ -220,29 +247,34 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
           </div>
       )}
 
-      {/* DYNAMIC SPLIT MODAL */}
       {isSplitModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl w-full max-w-sm border border-gray-200 dark:border-gray-800 shadow-2xl">
-                  <h3 className="text-xl font-bold mb-2">Configure Bundle Separation</h3>
+                  <h3 className="text-xl font-bold mb-2">Configure Separation</h3>
                   <p className="text-xs text-gray-500 mb-6">How many separate bundles do you want?</p>
                   <input type="number" min="1" max={puzzles.length} value={tempSplitCount} onChange={(e)=>setTempSplitCount(Number(e.target.value))} className="w-full p-4 text-center text-2xl font-black bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-xl mb-6 outline-none focus:border-green-500" />
                   <div className="flex space-x-3">
                       <button onClick={()=>setIsSplitModalOpen(false)} className="flex-1 p-4 bg-gray-200 dark:bg-gray-800 rounded-xl font-bold">Cancel</button>
-                      <button onClick={() => {if(tempSplitCount<1||tempSplitCount>puzzles.length)return alert("Invalid count!"); setSplitCount(tempSplitCount); setIsSplitModalOpen(false);}} className="flex-1 p-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold">Apply</button>
+                      <button onClick={saveSplitConfig} className="flex-1 p-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold">Apply</button>
                   </div>
               </div>
           </div>
       )}
 
-      {/* ... (The rest of the UI for Input Buttons, Preview, and Rendered Grid remains identical) ... */}
+      {/* 🚀 FIX: RESTORED ALL 8 BUTTONS WITH LIVE AUDIO */}
       {inputType === 'none' && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><Camera className="w-6 h-6 text-blue-500 mb-2"/> <span className="text-xs font-bold">Live Photo</span><input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e)=>handleFileUpload(e, 'image')} /></label>
-              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><Video className="w-6 h-6 text-red-500 mb-2"/> <span className="text-xs font-bold">Live Video</span><input type="file" accept="video/*" capture="environment" className="hidden" onChange={(e)=>handleFileUpload(e, 'video')} /></label>
-              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><ImageIcon className="w-6 h-6 text-pink-500 mb-2"/> <span className="text-xs font-bold">Gallery</span><input type="file" accept="image/*, video/*" multiple className="hidden" onChange={(e)=>handleFileUpload(e, 'media')} /></label>
-              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><FileText className="w-6 h-6 text-orange-500 mb-2"/> <span className="text-xs font-bold">Document</span><input type="file" accept=".pdf,.doc,.txt" className="hidden" onChange={(e)=>handleFileUpload(e, 'document')} /></label>
-              <button onClick={() => setInputType('text')} className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl hover:scale-105 transition-all col-span-4 shadow-sm"><Type className="w-6 h-6 text-green-500 mb-2"/> <span className="text-xs font-bold">Secret Text Message</span></button>
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><Camera className="w-6 h-6 text-blue-500 mb-2"/> <span className="text-xs font-bold text-center">Live Photo</span><input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e)=>handleFileUpload(e, 'image')} /></label>
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><Video className="w-6 h-6 text-red-500 mb-2"/> <span className="text-xs font-bold text-center">Live Video</span><input type="file" accept="video/*" capture="environment" className="hidden" onChange={(e)=>handleFileUpload(e, 'video')} /></label>
+              
+              <button onClick={startAudioRecord} className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl hover:scale-105 shadow-sm transition-all"><Mic className="w-6 h-6 text-orange-500 mb-2"/> <span className="text-xs font-bold text-center">Live Audio</span></button>
+              
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><ImageIcon className="w-6 h-6 text-pink-500 mb-2"/> <span className="text-xs font-bold text-center">Gallery (Max 3)</span><input type="file" accept="image/*, video/*" multiple className="hidden" onChange={(e)=>handleFileUpload(e, 'media')} /></label>
+              
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><Video className="w-6 h-6 text-purple-500 mb-2"/> <span className="text-xs font-bold text-center">Video File</span><input type="file" accept="video/*" className="hidden" onChange={(e)=>handleFileUpload(e, 'video')} /></label>
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><FileAudio className="w-6 h-6 text-yellow-500 mb-2"/> <span className="text-xs font-bold text-center">Audio File</span><input type="file" accept="audio/*" className="hidden" onChange={(e)=>handleFileUpload(e, 'audio')} /></label>
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><FileText className="w-6 h-6 text-indigo-500 mb-2"/> <span className="text-xs font-bold text-center">Document</span><input type="file" accept=".pdf,.doc,.docx,.txt,.xls" className="hidden" onChange={(e)=>handleFileUpload(e, 'document')} /></label>
+              <button onClick={() => setInputType('text')} className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl hover:scale-105 transition-all shadow-sm"><Type className="w-6 h-6 text-green-500 mb-2"/> <span className="text-xs font-bold text-center">Secret Text</span></button>
           </div>
       )}
 
@@ -256,13 +288,37 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
                   <Edit3 className="w-5 h-5 text-blue-500 mr-2"/>
                   <input type="text" value={vaultName} onChange={(e)=>setVaultName(e.target.value)} placeholder="Vault Name" className="w-full bg-transparent outline-none font-bold text-blue-600 dark:text-blue-400" />
               </div>
+              
+              {/* 🚀 FIX: Restored Preview UI */}
               {inputType === 'text' ? (
                   <textarea placeholder="Type secret message..." value={textData} onChange={(e)=>setTextData(e.target.value)} className="w-full p-4 bg-gray-50 dark:bg-gray-950 rounded-xl outline-none border border-gray-200 dark:border-gray-800 h-32" />
-              ) : (
-                  <div className="p-4 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-xl flex items-center border border-green-200 dark:border-green-800/50">
-                      <CheckCircle className="w-5 h-5 mr-2"/> <span className="text-sm font-bold truncate">Data Loaded. Ready.</span>
+              ) : inputType === 'audio' && isRecording ? (
+                  <div className="p-6 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-900/50 flex flex-col items-center">
+                      <div className="w-4 h-4 bg-red-500 rounded-full animate-pulse mb-3"/>
+                      <span className="font-bold text-red-600 mb-4">Recording Live Audio...</span>
+                      <button onClick={stopAudioRecord} className="flex items-center px-4 py-2 bg-red-600 text-white rounded-full font-bold shadow-md"><StopCircle className="w-5 h-5 mr-2"/> Stop Recording</button>
                   </div>
+              ) : (
+                  <>
+                    <div className="p-4 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-xl flex items-center border border-green-200 dark:border-green-800/50">
+                        <CheckCircle className="w-5 h-5 mr-2"/> <span className="text-sm font-bold truncate">Data Loaded successfully.</span>
+                    </div>
+                    {previews.length > 0 && (
+                        <div className="grid grid-cols-3 gap-2 mt-2">
+                            {previews.map((p, i) => (
+                                <div key={i} className="relative aspect-square bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center">
+                                    {p.type === 'image' ? <img src={p.url} className="w-full h-full object-cover"/> :
+                                     p.type === 'video' ? <Video className="w-8 h-8 text-gray-400 mb-1"/> :
+                                     p.type === 'audio' ? <Mic className="w-8 h-8 text-orange-400 mb-1"/> :
+                                     <FileText className="w-8 h-8 text-indigo-400 mb-1"/>}
+                                    {p.type !== 'image' && <span className="text-[10px] font-bold text-gray-500 truncate w-full text-center px-1">{p.name}</span>}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                  </>
               )}
+
               <div className="p-4 bg-gray-50 dark:bg-gray-950 rounded-xl border border-gray-200 dark:border-gray-800">
                   <label className="text-xs text-gray-500 font-bold mb-2 block flex items-center"><Layers className="w-4 h-4 mr-1"/> QR Density</label>
                   <select value={density} onChange={(e)=>setDensity(e.target.value)} className="w-full bg-transparent outline-none font-bold">
@@ -272,7 +328,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
                   </select>
               </div>
               <input type="password" placeholder="Enter Vault Password" value={password} onChange={(e)=>setPassword(e.target.value)} className="w-full p-4 bg-gray-50 dark:bg-gray-950 rounded-xl outline-none border border-gray-200 dark:border-gray-800 font-bold" />
-              <button onClick={handleEncrypt} disabled={isProcessing} className="w-full p-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-black shadow-lg transition-all">
+              <button onClick={handleEncrypt} disabled={isProcessing || (inputType === 'audio' && isRecording) || (!fileData && !textData)} className="w-full p-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-black shadow-lg transition-all disabled:opacity-50">
                   {isProcessing ? "Processing Vault..." : "ENCRYPT & GENERATE"}
               </button>
           </div>
@@ -302,8 +358,8 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
                              <span className="text-xs bg-black/40 text-gray-400 px-2 py-1 rounded-lg">{group.length} QRs</span>
                           </div>
                           <div className="flex gap-2">
-                              <button onClick={() => initiateDownload(group, idx, 'zip')} className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold"><FileArchive className="w-4 h-4 mr-1"/> ZIP</button>
-                              <button onClick={() => initiateDownload(group, idx, 'pdf')} className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold"><FileText className="w-4 h-4 mr-1"/> PDF</button>
+                              <button onClick={() => initiateDownload(group, idx, 'zip')} disabled={dlProgress.active} className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50"><FileArchive className="w-4 h-4 mr-1"/> ZIP</button>
+                              <button onClick={() => initiateDownload(group, idx, 'pdf')} disabled={dlProgress.active} className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50"><FileText className="w-4 h-4 mr-1"/> PDF</button>
                           </div>
                       </div>
                   ))}

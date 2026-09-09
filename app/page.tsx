@@ -9,15 +9,18 @@ import SettingsTab from '../components/SettingsTab';
 
 export default function CipherVault() {
   const [activeTab, setActiveTab] = useState('send');
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  // 🚀 FIX: Default theme is now Light Mode (false)
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [qrConfig, setQrConfig] = useState({ fg: '#000000', bg: '#ffffff', level: 'M', margin: 2 });
   const [isStealthLocked, setIsStealthLocked] = useState(false);
   const [liveTime, setLiveTime] = useState(new Date());
   const [isOffline, setIsOffline] = useState(false);
 
   useEffect(() => {
+    // Check if user previously saved dark mode
     const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'light') setIsDarkMode(false);
+    if (savedTheme === 'dark') setIsDarkMode(true);
+    
     localforage.getItem('qr_config').then((savedQr: any) => { if(savedQr) setQrConfig({...qrConfig, ...savedQr}); });
 
     let timeoutId: NodeJS.Timeout;
@@ -56,7 +59,11 @@ export default function CipherVault() {
     };
   }, []);
 
-  const toggleTheme = () => { setIsDarkMode(!isDarkMode); localStorage.setItem('theme', !isDarkMode ? 'dark' : 'light'); };
+  const toggleTheme = () => { 
+      setIsDarkMode(!isDarkMode); 
+      localStorage.setItem('theme', !isDarkMode ? 'dark' : 'light'); 
+  };
+  
   const saveQrSettings = async (fg: string, bg: string, level: string, margin: number) => {
       const conf = { fg, bg, level, margin };
       setQrConfig(conf); await localforage.setItem('qr_config', conf);
@@ -67,7 +74,7 @@ export default function CipherVault() {
   return (
     <div className={`${isDarkMode ? 'dark' : ''}`}>
       
-      {/* 🚀 FIX: Stealth Overlay (Protects state, does NOT unmount app) */}
+      {/* Stealth Overlay */}
       {isStealthLocked && (
         <div className="fixed inset-0 z-[100] bg-gray-100 dark:bg-black flex flex-col items-center justify-center text-gray-900 dark:text-gray-100 select-none transition-colors duration-500" onDoubleClick={() => setIsStealthLocked(false)}>
             <Lock className="w-12 h-12 mb-4 opacity-50 dark:opacity-30 animate-pulse text-green-600 dark:text-green-500"/>
@@ -81,7 +88,7 @@ export default function CipherVault() {
         </div>
       )}
 
-      {/* Main App (Runs in background even if locked) */}
+      {/* Main App */}
       <div className={`max-w-2xl mx-auto min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors duration-300 relative ${isStealthLocked ? 'hidden' : 'block'}`}>
         <div onDoubleClick={() => setIsStealthLocked(true)} className="p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 flex items-center justify-between sticky top-0 z-40 cursor-pointer select-none">
           <h1 className="text-xl md:text-2xl font-black flex items-center text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-emerald-600">
