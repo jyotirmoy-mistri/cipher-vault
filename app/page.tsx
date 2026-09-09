@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import localforage from 'localforage';
-import { Shield, Sun, Moon, QrCode, Camera, Layers, Settings, Lock } from 'lucide-react';
+import { Shield, Sun, Moon, QrCode, Camera, Layers, Settings, Lock, Wifi, WifiOff } from 'lucide-react';
 import SendTab from '../components/SendTab';
 import ScanTab from '../components/ScanTab';
 import HistoryTab from '../components/HistoryTab';
@@ -10,9 +10,12 @@ import SettingsTab from '../components/SettingsTab';
 export default function CipherVault() {
   const [activeTab, setActiveTab] = useState('send');
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [qrConfig, setQrConfig] = useState({ fg: '#000000', bg: '#ffffff', level: 'M' });
+  const [qrConfig, setQrConfig] = useState({ fg: '#000000', bg: '#ffffff', level: 'M', margin: 2 });
   const [isStealthLocked, setIsStealthLocked] = useState(false);
   const [liveTime, setLiveTime] = useState(new Date());
+  
+  // Offline Detector State
+  const [isOffline, setIsOffline] = useState(false);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -31,7 +34,13 @@ export default function CipherVault() {
     window.addEventListener('scroll', resetTimer);
     resetTimer();
 
-    // Live Clock for Stealth Mode
+    // Offline Detector Logic
+    const handleOffline = () => setIsOffline(true);
+    const handleOnline = () => setIsOffline(false);
+    setIsOffline(!navigator.onLine);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+
     let animFrame: number;
     const updateTime = () => {
         setLiveTime(new Date());
@@ -46,12 +55,14 @@ export default function CipherVault() {
         window.removeEventListener('keydown', resetTimer);
         window.removeEventListener('touchstart', resetTimer);
         window.removeEventListener('scroll', resetTimer);
+        window.removeEventListener('offline', handleOffline);
+        window.removeEventListener('online', handleOnline);
     };
   }, []);
 
   const toggleTheme = () => { setIsDarkMode(!isDarkMode); localStorage.setItem('theme', !isDarkMode ? 'dark' : 'light'); };
-  const saveQrSettings = async (fg: string, bg: string, level: string) => {
-      const conf = { fg, bg, level };
+  const saveQrSettings = async (fg: string, bg: string, level: string, margin: number) => {
+      const conf = { fg, bg, level, margin };
       setQrConfig(conf); await localforage.setItem('qr_config', conf);
   };
 
@@ -67,7 +78,6 @@ export default function CipherVault() {
                   <h1 className="text-4xl font-black tracking-widest opacity-80 mb-1 font-mono">{formatTime(liveTime)}</h1>
                   <p className="text-sm opacity-50 font-mono tracking-widest mb-10 text-green-600 dark:text-green-500">.{liveTime.getMilliseconds().toString().padStart(3,'0')}</p>
                   <p className="text-xs opacity-40 mt-2 bg-gray-200 dark:bg-gray-900 px-4 py-2 rounded-full">Double tap anywhere to unlock</p>
-                  
                   <div className="absolute bottom-8 flex flex-col items-center opacity-30 dark:opacity-20">
                       <Shield className="w-6 h-6 mb-1"/>
                       <p className="text-xs font-bold tracking-widest uppercase">Developed by Jyotirmoy Mistri</p>
@@ -81,12 +91,19 @@ export default function CipherVault() {
     <div className={`${isDarkMode ? 'dark' : ''}`}>
     <div className="max-w-2xl mx-auto min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors duration-300 relative">
       <div onDoubleClick={() => setIsStealthLocked(true)} className="p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 flex items-center justify-between sticky top-0 z-50 cursor-pointer select-none">
-        <h1 className="text-2xl font-black flex items-center text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-emerald-600">
+        <h1 className="text-xl md:text-2xl font-black flex items-center text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-emerald-600">
           <Shield className="mr-2 text-green-500" /> CipherVault
         </h1>
-        <button onClick={(e) => { e.stopPropagation(); toggleTheme(); }} className="p-2 rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 transition-all">
-            {isDarkMode ? <Sun className="w-5 h-5 text-yellow-400"/> : <Moon className="w-5 h-5 text-gray-600"/>}
-        </button>
+        <div className="flex items-center space-x-3">
+            {isOffline ? (
+                <div className="flex items-center text-xs font-bold bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 px-2 py-1 rounded-full"><WifiOff className="w-3 h-3 mr-1"/> Offline</div>
+            ) : (
+                <div className="flex items-center text-xs font-bold bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 px-2 py-1 rounded-full"><Wifi className="w-3 h-3 mr-1"/> Online</div>
+            )}
+            <button onClick={(e) => { e.stopPropagation(); toggleTheme(); }} className="p-2 rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 transition-all">
+                {isDarkMode ? <Sun className="w-5 h-5 text-yellow-400"/> : <Moon className="w-5 h-5 text-gray-600"/>}
+            </button>
+        </div>
       </div>
 
       <div className="flex-1 p-5 overflow-y-auto pb-32">

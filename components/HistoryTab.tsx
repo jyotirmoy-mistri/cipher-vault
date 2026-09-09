@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import localforage from 'localforage';
 import { decryptFile } from '../utils/vaultLogic';
-import { Download, Eye, Trash2, Copy, CheckCircle } from 'lucide-react';
+import { Download, Eye, Trash2, Copy, CheckCircle, Share2 } from 'lucide-react';
 
 export default function HistoryTab({ isActive }: { isActive: boolean }) {
   const [scannedSessions, setScannedSessions] = useState<any>({});
@@ -39,11 +39,16 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
   };
 
   const copyToClipboard = async (text: string) => {
-      try {
-          await navigator.clipboard.writeText(text);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-      } catch (error) { console.error(error); }
+      try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch (error) {}
+  };
+
+  const shareText = async (text: string) => {
+      if (navigator.share) {
+          try { await navigator.share({ title: 'CipherVault Message', text: text }); } catch(e) {}
+      } else {
+          copyToClipboard(text);
+          alert("Sharing not supported. Text copied instead!");
+      }
   };
 
   const handleDelete = (fileId: string) => {
@@ -57,7 +62,6 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
           await localforage.setItem('scan_history', newSessions);
           setUndoItem(null);
       }, 3000);
-
       setUndoItem({ id: fileId, data: deletedData, timeout });
   };
 
@@ -75,7 +79,6 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
       <h2 className="text-xl font-bold">Vault Assembly (History)</h2>
       {Object.keys(scannedSessions).length === 0 && <p className="text-center text-gray-500 mt-10">No parts scanned yet.</p>}
       
-      {/* Premium Preview Modal */}
       {previewData && (
           <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-4">
               <button onClick={()=>setPreviewData(null)} className="absolute top-6 right-6 text-white bg-gray-800 hover:bg-gray-700 p-3 rounded-full transition-all">Close</button>
@@ -84,9 +87,12 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
                   <div className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-6 rounded-3xl max-w-lg w-full border border-gray-200 dark:border-gray-800 shadow-2xl relative">
                       <div className="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-gray-800 pb-4">
                           <h3 className="font-bold text-lg text-green-600">Decrypted Message</h3>
-                          <button onClick={() => copyToClipboard(previewData.data)} className="flex items-center text-xs font-bold bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-all">
-                              {copied ? <><CheckCircle className="w-4 h-4 mr-1 text-green-500"/> Copied!</> : <><Copy className="w-4 h-4 mr-1"/> Copy Text</>}
-                          </button>
+                          <div className="flex space-x-2">
+                              <button onClick={() => shareText(previewData.data)} className="flex items-center text-xs font-bold bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400 px-3 py-2 rounded-lg transition-all"><Share2 className="w-4 h-4 mr-1"/> Share</button>
+                              <button onClick={() => copyToClipboard(previewData.data)} className="flex items-center text-xs font-bold bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg hover:bg-gray-200 transition-all">
+                                  {copied ? <><CheckCircle className="w-4 h-4 mr-1 text-green-500"/> Copied</> : <><Copy className="w-4 h-4 mr-1"/> Copy</>}
+                              </button>
+                          </div>
                       </div>
                       <p className="whitespace-pre-wrap font-mono text-sm leading-relaxed max-h-[60vh] overflow-y-auto">{previewData.data}</p>
                   </div>

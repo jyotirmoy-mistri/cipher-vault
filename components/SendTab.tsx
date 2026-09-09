@@ -23,6 +23,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
   const [splitCount, setSplitCount] = useState(1);
   const [isSplitModalOpen, setIsSplitModalOpen] = useState(false);
   const [tempSplitCount, setTempSplitCount] = useState(1);
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12; 
 
@@ -78,13 +79,13 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
           const folder = zip.folder(folderName);
           const startIndex = splitCount > 1 ? (groupIndex * Math.ceil(puzzles.length / splitCount)) : 0;
           for (let i = 0; i < group.length; i++) {
-              const dataUrl = await QRCode.toDataURL(group[i], { errorCorrectionLevel: qrConfig.level, margin: qrConfig.margin, color: { dark: qrConfig.fg, light: qrConfig.bg }});
+              const dataUrl = await QRCode.toDataURL(group[i], { errorCorrectionLevel: qrConfig.level as any, margin: qrConfig.margin, color: { dark: qrConfig.fg, light: qrConfig.bg }});
               const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
               folder?.file(`QR_${startIndex + i + 1}.png`, base64Data, {base64: true});
           }
           const content = await zip.generateAsync({type:"blob"});
           saveAs(content, `${folderName}.zip`);
-      } catch (error) { console.error(error); alert("Failed to create ZIP."); }
+      } catch (err) {}
       setIsProcessing(false);
   };
 
@@ -93,7 +94,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
       setTimeout(async () => {
           try {
               const pdf = new jsPDF('p', 'mm', 'a4');
-              const cols = 3; const rows = 4;
+              const cols = 3; const rows = 4; 
               const qrSize = 50; const marginX = 20; const marginY = 20;
               const spacingX = 60; const spacingY = 65;
               const startIndex = splitCount > 1 ? (groupIndex * Math.ceil(puzzles.length / splitCount)) : 0;
@@ -104,7 +105,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
                   const col = pageIdx % cols; const row = Math.floor(pageIdx / cols);
                   const x = marginX + col * spacingX; const y = marginY + row * spacingY;
                   
-                  const dataUrl = await QRCode.toDataURL(group[i], { errorCorrectionLevel: qrConfig.level, margin: qrConfig.margin, color: { dark: qrConfig.fg, light: qrConfig.bg }});
+                  const dataUrl = await QRCode.toDataURL(group[i], { errorCorrectionLevel: qrConfig.level as any, margin: qrConfig.margin, color: { dark: qrConfig.fg, light: qrConfig.bg }});
                   pdf.addImage(dataUrl, 'PNG', x, y, qrSize, qrSize);
                   pdf.setFontSize(9);
                   pdf.setTextColor(100);
@@ -112,7 +113,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
               }
               const fileName = splitCount > 1 ? `${vaultName}_PrintBundle_${groupIndex + 1}.pdf` : `${vaultName}_PrintBundle.pdf`;
               pdf.save(fileName);
-          } catch(error) { console.error(error); alert("Failed to create PDF."); }
+          } catch(err) { alert("Failed to create PDF."); }
           setIsProcessing(false);
       }, 50); 
   };
@@ -138,12 +139,12 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
 
       {inputType === 'none' && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><Camera className="w-6 h-6 text-blue-500 mb-2"/> <span className="text-xs font-bold">Live Photo</span><input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileUpload} /></label>
-              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><Video className="w-6 h-6 text-red-500 mb-2"/> <span className="text-xs font-bold">Live Video</span><input type="file" accept="video/*" capture="environment" className="hidden" onChange={handleFileUpload} /></label>
-              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><ImageIcon className="w-6 h-6 text-pink-500 mb-2"/> <span className="text-xs font-bold">Image File</span><input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} /></label>
-              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><Video className="w-6 h-6 text-purple-500 mb-2"/> <span className="text-xs font-bold">Video File</span><input type="file" accept="video/*" className="hidden" onChange={handleFileUpload} /></label>
-              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><FileAudio className="w-6 h-6 text-yellow-500 mb-2"/> <span className="text-xs font-bold">Audio File</span><input type="file" accept="audio/*" className="hidden" onChange={handleFileUpload} /></label>
-              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><FileText className="w-6 h-6 text-orange-500 mb-2"/> <span className="text-xs font-bold">Document</span><input type="file" accept=".pdf,.doc,.docx,.txt,.xls" className="hidden" onChange={handleFileUpload} /></label>
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><Camera className="w-6 h-6 text-blue-500 mb-2"/> <span className="text-xs font-bold">Live Photo</span><input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e)=>{setInputType('file'); handleFileUpload(e);}} /></label>
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><Video className="w-6 h-6 text-red-500 mb-2"/> <span className="text-xs font-bold">Live Video</span><input type="file" accept="video/*" capture="environment" className="hidden" onChange={(e)=>{setInputType('file'); handleFileUpload(e);}} /></label>
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><ImageIcon className="w-6 h-6 text-pink-500 mb-2"/> <span className="text-xs font-bold">Image File</span><input type="file" accept="image/*" className="hidden" onChange={(e)=>{setInputType('file'); handleFileUpload(e);}} /></label>
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><Video className="w-6 h-6 text-purple-500 mb-2"/> <span className="text-xs font-bold">Video File</span><input type="file" accept="video/*" className="hidden" onChange={(e)=>{setInputType('file'); handleFileUpload(e);}} /></label>
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><FileAudio className="w-6 h-6 text-yellow-500 mb-2"/> <span className="text-xs font-bold">Audio File</span><input type="file" accept="audio/*" className="hidden" onChange={(e)=>{setInputType('file'); handleFileUpload(e);}} /></label>
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><FileText className="w-6 h-6 text-orange-500 mb-2"/> <span className="text-xs font-bold">Document</span><input type="file" accept=".pdf,.doc,.docx,.txt,.xls" className="hidden" onChange={(e)=>{setInputType('file'); handleFileUpload(e);}} /></label>
               <button onClick={() => setInputType('text')} className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl hover:scale-105 transition-all col-span-2 shadow-sm"><Type className="w-6 h-6 text-green-500 mb-2"/> <span className="text-xs font-bold">Secret Text Message</span></button>
           </div>
       )}
@@ -217,8 +218,11 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
                   const actualIndex = (currentPage - 1) * itemsPerPage + idx;
                   return (
                       <div key={actualIndex} className="flex flex-col items-center p-3 border border-gray-100 dark:border-gray-800 rounded-xl" style={{ backgroundColor: qrConfig.bg }}>
-                          <QRCodeSVG value={pzl} size={140} fgColor={qrConfig.fg} bgColor={qrConfig.bg} level={qrConfig.level} marginSize={qrConfig.margin} />
-                          <p className="text-xs mt-2 font-mono font-bold" style={{ color: qrConfig.fg }}>{actualIndex + 1}/{puzzles.length}</p>
+                          {/* FIX: marginSize removed to fix TypeScript Error. Padding is handled by the parent div! */}
+                          <div style={{ padding: `${qrConfig.margin || 2}px`, backgroundColor: qrConfig.bg }} className="rounded-lg">
+                              <QRCodeSVG value={pzl} size={140} fgColor={qrConfig.fg} bgColor={qrConfig.bg} level={qrConfig.level as any} />
+                          </div>
+                          <p className="text-xs mt-2 font-mono font-bold" style={{ color: qrConfig.fg }}>Part {actualIndex + 1}/{puzzles.length}</p>
                       </div>
                   )
               })}
