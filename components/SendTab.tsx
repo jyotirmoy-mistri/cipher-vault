@@ -6,7 +6,7 @@ import JSZip from 'jszip';
 import { jsPDF } from 'jspdf';
 import { saveAs } from 'file-saver';
 import { encryptFile, createPuzzles, formatBytes } from '../utils/vaultLogic';
-import { Camera, Image as ImageIcon, FileText, Type, CheckCircle, X, Video, FileAudio, Layers, Shield, FileArchive, Share2, ChevronLeft, ChevronRight, Edit3, Settings2, Download } from 'lucide-react';
+import { Camera, Image as ImageIcon, FileText, Type, CheckCircle, X, Video, FileAudio, Layers, Shield, FileArchive, Share2, ChevronLeft, ChevronRight, Edit3, Settings2, Download, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function SendTab({ qrConfig }: { qrConfig: any }) {
   const [inputType, setInputType] = useState<'none' | 'file' | 'text'>('none');
@@ -26,6 +26,10 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12; 
+
+  // --- NEW: Anti-Freeze Download States ---
+  const [confirmModal, setConfirmModal] = useState<{active: boolean, type: 'zip'|'pdf', groupIndex: number, group: string[]} | null>(null);
+  const [dlProgress, setDlProgress] = useState({ active: false, current: 0, total: 0, msg: '' });
 
   const handleFileUpload = async (e: any) => {
     const file = e.target.files[0];
@@ -71,33 +75,48 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
 
   const puzzleGroups = splitCount <= 1 ? [puzzles] : Array.from({ length: Math.ceil(puzzles.length / Math.ceil(puzzles.length / splitCount)) }, (v, i) => puzzles.slice(i * Math.ceil(puzzles.length / splitCount), i * Math.ceil(puzzles.length / splitCount) + Math.ceil(puzzles.length / splitCount)));
 
-  const downloadZipGroup = async (group: string[], groupIndex: number) => {
-      setIsProcessing(true);
-      try {
-          const zip = new JSZip();
-          const folderName = splitCount > 1 ? `${vaultName}_Part_${groupIndex + 1}` : vaultName;
-          const folder = zip.folder(folderName);
-          const startIndex = splitCount > 1 ? (groupIndex * Math.ceil(puzzles.length / splitCount)) : 0;
-          for (let i = 0; i < group.length; i++) {
-              const dataUrl = await QRCode.toDataURL(group[i], { errorCorrectionLevel: qrConfig.level as any, margin: qrConfig.margin, color: { dark: qrConfig.fg, light: qrConfig.bg }});
-              const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
-              folder?.file(`QR_${startIndex + i + 1}.png`, base64Data, {base64: true});
-          }
-          const content = await zip.generateAsync({type:"blob"});
-          saveAs(content, `${folderName}.zip`);
-      } catch (err) {}
-      setIsProcessing(false);
+  // --- ANTI-FREEZE DOWNLOAD ENGINE ---
+  const initiateDownload = (group: string[], groupIndex: number, type: 'zip'|'pdf') => {
+      setConfirmModal({ active: true, type, groupIndex, group });
   };
 
-  const downloadNativePDFGroup = async (group: string[], groupIndex: number) => {
-      setIsProcessing(true);
-      setTimeout(async () => {
-          try {
+  const executeDownload = async () => {
+      if(!confirmModal) return;
+      const { type, groupIndex, group } = confirmModal;
+      setConfirmModal(null);
+      setDlProgress({ active: true, current: 0, total: group.length, msg: `Initializing ${type.toUpperCase()} generation...` });
+
+      try {
+          const folderName = splitCount > 1 ? `${vaultName}_Part_${groupIndex + 1}` : vaultName;
+          const startIndex = splitCount > 1 ? (groupIndex * Math.ceil(puzzles.length / splitCount)) : 0;
+
+          if (type === 'zip') {
+              const zip = new JSZip();
+              const folder = zip.folder(folderName);
+              
+              for (let i = 0; i < group.length; i++) {
+                  const dataUrl = await QRCode.toDataURL(group[i], { errorCorrectionLevel: qrConfig.level as any, margin: qrConfig.margin, color: { dark: qrConfig.fg, light: qrConfig.bg }});
+                  const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
+                  folder?.file(`QR_${startIndex + i + 1}.png`, base64Data, {base64: true});
+                  
+                  // Yield to main thread every 10 items to prevent Freezing
+                  if (i % 10 === 0) {
+                      setDlProgress({ active: true, current: i + 1, total: group.length, msg: `Generating QR codes...` });
+                      await new Promise(r => setTimeout(r, 0));
+                  }
+              }
+              
+              setDlProgress({ active: true, current: group.length, total: group.length, msg: `Zipping files. Please wait...` });
+              await new Promise(r => setTimeout(r, 50)); // Yield before heavy zipping
+              
+              const content = await zip.generateAsync({type:"blob"});
+              saveAs(content, `${folderName}.zip`);
+
+          } else if (type === 'pdf') {
               const pdf = new jsPDF('p', 'mm', 'a4');
               const cols = 3; const rows = 4; 
               const qrSize = 50; const marginX = 20; const marginY = 20;
               const spacingX = 60; const spacingY = 65;
-              const startIndex = splitCount > 1 ? (groupIndex * Math.ceil(puzzles.length / splitCount)) : 0;
 
               for (let i = 0; i < group.length; i++) {
                   if (i > 0 && i % (cols * rows) === 0) pdf.addPage();
@@ -109,13 +128,25 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
                   pdf.addImage(dataUrl, 'PNG', x, y, qrSize, qrSize);
                   pdf.setFontSize(9);
                   pdf.setTextColor(100);
-                  pdf.text(`${vaultName} - Part ${startIndex + i + 1}/${puzzles.length}`, x, y + qrSize + 5);
+                  pdf.text(`${vaultName} - P${startIndex + i + 1}/${puzzles.length}`, x, y + qrSize + 5);
+
+                  // Yield to main thread
+                  if (i % 10 === 0) {
+                      setDlProgress({ active: true, current: i + 1, total: group.length, msg: `Assembling PDF pages...` });
+                      await new Promise(r => setTimeout(r, 0));
+                  }
               }
+              
+              setDlProgress({ active: true, current: group.length, total: group.length, msg: `Saving PDF file...` });
+              await new Promise(r => setTimeout(r, 50));
               const fileName = splitCount > 1 ? `${vaultName}_PrintBundle_${groupIndex + 1}.pdf` : `${vaultName}_PrintBundle.pdf`;
               pdf.save(fileName);
-          } catch(err) { alert("Failed to create PDF."); }
-          setIsProcessing(false);
-      }, 50); 
+          }
+      } catch (err) {
+          alert(`Failed to create ${type.toUpperCase()}.`);
+      }
+      
+      setDlProgress({ active: false, current: 0, total: 0, msg: '' });
   };
 
   const currentPuzzles = puzzles.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -123,6 +154,39 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
 
   return (
     <div className="space-y-6 animate-in fade-in">
+      
+      {/* --- CONFIRMATION MODAL --- */}
+      {confirmModal && (
+          <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl w-full max-w-sm border border-gray-200 dark:border-gray-800 shadow-2xl text-center">
+                  <div className="flex justify-center mb-4"><AlertCircle className="w-12 h-12 text-blue-500"/></div>
+                  <h3 className="text-xl font-bold mb-2">Confirm Download</h3>
+                  <p className="text-sm text-gray-500 mb-6">
+                      You are about to generate and download <strong>{confirmModal.group.length} QR Codes</strong> as a <strong>{confirmModal.type.toUpperCase()}</strong> file. This process happens completely offline.
+                  </p>
+                  <div className="flex space-x-3">
+                      <button onClick={()=>setConfirmModal(null)} className="flex-1 p-3 bg-gray-200 dark:bg-gray-800 rounded-xl font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors">Cancel</button>
+                      <button onClick={executeDownload} className="flex-1 p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-colors">Yes, Download</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* --- PROGRESS BAR OVERLAY --- */}
+      {dlProgress.active && (
+          <div className="fixed inset-0 z-[70] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6">
+              <Loader2 className="w-16 h-16 text-green-500 animate-spin mb-6"/>
+              <h2 className="text-2xl font-black text-white mb-2">{dlProgress.msg}</h2>
+              <p className="text-green-400 font-mono text-lg mb-6">{dlProgress.current} / {dlProgress.total} Items</p>
+              
+              <div className="w-full max-w-sm bg-gray-800 rounded-full h-4 overflow-hidden border border-gray-700 shadow-inner">
+                  <div className="bg-gradient-to-r from-green-500 to-emerald-400 h-full transition-all duration-300" style={{ width: `${(dlProgress.current / dlProgress.total) * 100 || 0}%` }}></div>
+              </div>
+              <p className="text-gray-500 text-xs mt-4">Please do not close the browser.</p>
+          </div>
+      )}
+
+      {/* Dynamic Split Modal */}
       {isSplitModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl w-full max-w-sm border border-gray-200 dark:border-gray-800 shadow-2xl">
@@ -205,8 +269,9 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
                              <span className="text-xs bg-black/40 text-gray-400 px-2 py-1 rounded-lg">{group.length} QRs</span>
                           </div>
                           <div className="flex gap-2">
-                              <button onClick={() => downloadZipGroup(group, idx)} disabled={isProcessing} className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50"><FileArchive className="w-4 h-4 mr-1"/> ZIP</button>
-                              <button onClick={() => downloadNativePDFGroup(group, idx)} disabled={isProcessing} className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50"><FileText className="w-4 h-4 mr-1"/> PDF</button>
+                              {/* --- MODIFIED TO TRIGGER CONFIRMATION MODAL --- */}
+                              <button onClick={() => initiateDownload(group, idx, 'zip')} disabled={dlProgress.active} className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50"><FileArchive className="w-4 h-4 mr-1"/> ZIP</button>
+                              <button onClick={() => initiateDownload(group, idx, 'pdf')} disabled={dlProgress.active} className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50"><FileText className="w-4 h-4 mr-1"/> PDF</button>
                           </div>
                       </div>
                   ))}
@@ -218,7 +283,6 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
                   const actualIndex = (currentPage - 1) * itemsPerPage + idx;
                   return (
                       <div key={actualIndex} className="flex flex-col items-center p-3 border border-gray-100 dark:border-gray-800 rounded-xl" style={{ backgroundColor: qrConfig.bg }}>
-                          {/* FIX: marginSize removed to fix TypeScript Error. Padding is handled by the parent div! */}
                           <div style={{ padding: `${qrConfig.margin || 2}px`, backgroundColor: qrConfig.bg }} className="rounded-lg">
                               <QRCodeSVG value={pzl} size={140} fgColor={qrConfig.fg} bgColor={qrConfig.bg} level={qrConfig.level as any} />
                           </div>
