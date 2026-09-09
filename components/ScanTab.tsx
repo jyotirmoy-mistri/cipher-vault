@@ -17,11 +17,11 @@ export default function ScanTab({ isActive }: { isActive: boolean }) {
   const [zipStatus, setZipStatus] = useState({ active: false, progress: 0, total: 0, msg: '' });
   const abortZipRef = useRef(false);
   const trackedChunksRef = useRef<{id: string, part: number}[]>([]);
+  const lastScannedRef = useRef<string>(''); // Smart Debounce
 
   const [scanStatus, setScanStatus] = useState({ type: '', msg: '' });
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isScanningActive, setIsScanningActive] = useState(false);
-  
   const [isDragging, setIsDragging] = useState(false);
 
   const showStatus = (type: 'error' | 'success' | 'loading', msg: string) => { 
@@ -33,11 +33,16 @@ export default function ScanTab({ isActive }: { isActive: boolean }) {
       if(cameraActive) await stopCamera();
       html5QrCodeRef.current = new Html5Qrcode("reader");
       try {
-          await html5QrCodeRef.current.start({ facingMode: facingMode }, { fps: 15, qrbox: 250 }, processScannedData, undefined);
+          await html5QrCodeRef.current.start(
+              { facingMode: facingMode }, 
+              { fps: 15, qrbox: 250 }, 
+              (decodedText) => processScannedData(decodedText, false), // FIX: Correct Callback Signature
+              undefined
+          );
           setCameraActive(true);
       } catch (error) { 
           console.error(error); 
-          showStatus('error', "Camera access denied or device missing."); 
+          showStatus('error', "Camera access denied or currently in use."); 
       }
   };
   
@@ -99,9 +104,9 @@ export default function ScanTab({ isActive }: { isActive: boolean }) {
                   const decoded = await scanner.scanFile(tempFile, true);
                   await processScannedData(decoded, true);
                   foundCount++;
-              } catch(error) { console.error(error); } 
+              } catch(error) {} // Silently skip invalid images in ZIP
               
-              await new Promise(resolve => setTimeout(resolve, 0));
+              await new Promise(resolve => setTimeout(resolve, 0)); // UI Yield
           }
           
           if(foundCount > 0) showStatus('success', `Extracted & Saved ${foundCount} parts!`);
@@ -133,9 +138,9 @@ export default function ScanTab({ isActive }: { isActive: boolean }) {
 
               try {
                   const decoded = await scanner.scanFile(canvas as any, true);
-                  await processScannedData(decoded);
+                  await processScannedData(decoded, false);
                   foundCount++;
-              } catch(error) { console.error(error); } 
+              } catch(error) {} 
           }
           if(foundCount > 0) showStatus('success', `Found ${foundCount} parts in PDF!`);
           else showStatus('error', "No QRs found in PDF.");
@@ -149,7 +154,7 @@ export default function ScanTab({ isActive }: { isActive: boolean }) {
       if(!html5QrCodeRef.current) html5QrCodeRef.current = new Html5Qrcode("reader");
       try {
           const decoded = await html5QrCodeRef.current.scanFile(file, true);
-          await processScannedData(decoded);
+          await processScannedData(decoded, false);
           showStatus('success', 'Image Scanned Successfully!');
       } catch(error) { console.error(error); showStatus('error', "No valid QR found in image."); }
   };
@@ -167,6 +172,9 @@ export default function ScanTab({ isActive }: { isActive: boolean }) {
 
   const processScannedData = async (decodedText: string, fromZip = false) => {
       try {
+          // Debounce: Prevent duplicate scanning lag
+          if (!fromZip && lastScannedRef.current === decodedText) return; 
+
           const parsed = JSON.parse(decodedText);
           if(parsed.cv_sig === "CipherVault_v2" && parsed.id) {
              const history: any = await localforage.getItem('scan_history') || {};
@@ -176,11 +184,16 @@ export default function ScanTab({ isActive }: { isActive: boolean }) {
                  history[parsed.id].chunks[parsed.part] = parsed.data;
                  await localforage.setItem('scan_history', history);
                  
+                 if (!fromZip) lastScannedRef.current = decodedText; // Update Debounce
+                 
+                 // Haptic Feedback for physical scanning
+                 if (!fromZip && navigator.vibrate) navigator.vibrate(50); 
+                 
                  if (fromZip) trackedChunksRef.current.push({ id: parsed.id, part: parsed.part });
                  else showStatus('success', `Saved Part ${parsed.part}/${parsed.total}!`);
              }
           }
-      } catch(error) { console.error(error); }
+      } catch(error) { /* Silent catch to ignore regular non-vault QRs */ }
   };
 
   useEffect(() => { if (!isActive) stopCamera(); }, [isActive]);
@@ -242,7 +255,7 @@ export default function ScanTab({ isActive }: { isActive: boolean }) {
           )}
       </div>
 
-      <div className="relative"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300 dark:border-gray-800"></div></div><div className="relative flex justify-center"><span className="bg-gray-50 dark:bg-gray-950 px-4 text-xs font-bold text-gray-500 uppercase">Or Scan Individual</span></div></div>
+      <div className="relative"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300 dark:border-gray-800"></div></div><div className="relative flex justify-center"><span className="bg-gray-50 dark:bg-gray-950 px-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Or Scan Individual</span></div></div>
 
       <div className="grid grid-cols-2 gap-4">
           <label className={`flex flex-col items-center p-5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all ${isScanningActive ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -256,7 +269,7 @@ export default function ScanTab({ isActive }: { isActive: boolean }) {
       </div>
 
       {previewUrl && (
-          <div className="relative p-2 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm animate-in fade-in">
+          <div className="relative p-2 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm animate-in fade-in mt-4">
               <button onClick={()=>setPreviewUrl(null)} className="absolute top-4 right-4 bg-gray-900/70 hover:bg-gray-900 text-white p-2 rounded-full transition-all"><X className="w-5 h-5"/></button>
               <img src={previewUrl} className="w-full h-48 object-contain rounded-xl bg-gray-100 dark:bg-gray-800" />
               <p className="text-center text-xs font-bold text-gray-500 mt-2 tracking-wider uppercase">File Preview</p>
