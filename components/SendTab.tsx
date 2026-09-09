@@ -6,7 +6,7 @@ import JSZip from 'jszip';
 import { jsPDF } from 'jspdf';
 import { saveAs } from 'file-saver';
 import { encryptFile, createPuzzles, formatBytes } from '../utils/vaultLogic';
-import { Camera, Image as ImageIcon, FileText, Type, CheckCircle, X, Video, FileAudio, Layers, Shield, FileArchive, Share2, ChevronLeft, ChevronRight, Edit3, Settings2, Download, AlertCircle, Loader2 } from 'lucide-react';
+import { Camera, Image as ImageIcon, FileText, Type, CheckCircle, X, Video, FileAudio, Layers, Shield, FileArchive, Share2, ChevronLeft, ChevronRight, Edit3, Settings2, Download, AlertCircle, Loader2, Minus, Maximize2 } from 'lucide-react';
 
 export default function SendTab({ qrConfig }: { qrConfig: any }) {
   const [inputType, setInputType] = useState<'none' | 'file' | 'text'>('none');
@@ -14,7 +14,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
   const [textData, setTextData] = useState<string>('');
   const [password, setPassword] = useState('');
   const [density, setDensity] = useState('medium');
-  const [vaultName, setVaultName] = useState('Secret_Vault');
+  const [vaultName, setVaultName] = useState('');
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [puzzles, setPuzzles] = useState<string[]>([]);
@@ -27,15 +27,21 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12; 
 
-  // --- NEW: Anti-Freeze Download States ---
+  // --- Background Download Engine ---
   const [confirmModal, setConfirmModal] = useState<{active: boolean, type: 'zip'|'pdf', groupIndex: number, group: string[]} | null>(null);
-  const [dlProgress, setDlProgress] = useState({ active: false, current: 0, total: 0, msg: '' });
+  const [dlProgress, setDlProgress] = useState({ active: false, current: 0, total: 0, msg: '', minimized: false });
 
   const handleFileUpload = async (e: any) => {
     const file = e.target.files[0];
     if(!file) return;
-    let baseName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
-    setVaultName(`${baseName}_Vault`);
+    
+    // 🚀 FIX: Smart Dynamic Naming
+    const ext = file.name.split('.').pop() || 'file';
+    const base = file.name.replace(`.${ext}`, '').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 10);
+    const prefix = file.type.startsWith('image') ? 'IMG' : file.type.startsWith('video') ? 'VID' : file.type.startsWith('audio') ? 'AUD' : 'DOC';
+    const uid = Math.random().toString(36).substr(2, 4).toUpperCase();
+    setVaultName(`${prefix}_${base}_${uid}_Vault`);
+
     setIsProcessing(true);
     const reader = new FileReader();
     reader.onload = (event) => { setFileData(event.target?.result as string); setIsProcessing(false); };
@@ -45,7 +51,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
   const handleEncrypt = () => {
     const dataToEncrypt = inputType === 'text' ? textData : fileData;
     if(!dataToEncrypt || !password) return alert("Data & Password required!");
-    if(inputType === 'text' && vaultName === 'Secret_Vault') setVaultName('Secret_Message_Vault');
+    if(inputType === 'text' && !vaultName) setVaultName(`TXT_SecretMsg_${Math.random().toString(36).substr(2, 4).toUpperCase()}`);
 
     setIsProcessing(true);
     setTimeout(() => {
@@ -63,7 +69,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
   const clearSendForm = () => { 
       setInputType('none'); setFileData(''); setTextData(''); 
       setPassword(''); setPuzzles([]); setStats(null); 
-      setCurrentPage(1); setVaultName('Secret_Vault'); setSplitCount(1);
+      setCurrentPage(1); setVaultName(''); setSplitCount(1);
   };
 
   const saveSplitConfig = () => {
@@ -75,7 +81,6 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
 
   const puzzleGroups = splitCount <= 1 ? [puzzles] : Array.from({ length: Math.ceil(puzzles.length / Math.ceil(puzzles.length / splitCount)) }, (v, i) => puzzles.slice(i * Math.ceil(puzzles.length / splitCount), i * Math.ceil(puzzles.length / splitCount) + Math.ceil(puzzles.length / splitCount)));
 
-  // --- ANTI-FREEZE DOWNLOAD ENGINE ---
   const initiateDownload = (group: string[], groupIndex: number, type: 'zip'|'pdf') => {
       setConfirmModal({ active: true, type, groupIndex, group });
   };
@@ -84,7 +89,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
       if(!confirmModal) return;
       const { type, groupIndex, group } = confirmModal;
       setConfirmModal(null);
-      setDlProgress({ active: true, current: 0, total: group.length, msg: `Initializing ${type.toUpperCase()} generation...` });
+      setDlProgress({ active: true, current: 0, total: group.length, msg: `Initializing ${type.toUpperCase()}...`, minimized: false });
 
       try {
           const folderName = splitCount > 1 ? `${vaultName}_Part_${groupIndex + 1}` : vaultName;
@@ -93,30 +98,23 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
           if (type === 'zip') {
               const zip = new JSZip();
               const folder = zip.folder(folderName);
-              
               for (let i = 0; i < group.length; i++) {
                   const dataUrl = await QRCode.toDataURL(group[i], { errorCorrectionLevel: qrConfig.level as any, margin: qrConfig.margin, color: { dark: qrConfig.fg, light: qrConfig.bg }});
                   const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
                   folder?.file(`QR_${startIndex + i + 1}.png`, base64Data, {base64: true});
-                  
-                  // Yield to main thread every 10 items to prevent Freezing
                   if (i % 10 === 0) {
-                      setDlProgress({ active: true, current: i + 1, total: group.length, msg: `Generating QR codes...` });
+                      setDlProgress(prev => ({ ...prev, current: i + 1, msg: `Generating QRs...` }));
                       await new Promise(r => setTimeout(r, 0));
                   }
               }
-              
-              setDlProgress({ active: true, current: group.length, total: group.length, msg: `Zipping files. Please wait...` });
-              await new Promise(r => setTimeout(r, 50)); // Yield before heavy zipping
-              
+              setDlProgress(prev => ({ ...prev, current: group.length, msg: `Zipping files...` }));
+              await new Promise(r => setTimeout(r, 50)); 
               const content = await zip.generateAsync({type:"blob"});
               saveAs(content, `${folderName}.zip`);
 
           } else if (type === 'pdf') {
               const pdf = new jsPDF('p', 'mm', 'a4');
-              const cols = 3; const rows = 4; 
-              const qrSize = 50; const marginX = 20; const marginY = 20;
-              const spacingX = 60; const spacingY = 65;
+              const cols = 3; const rows = 4; const qrSize = 50; const marginX = 20; const marginY = 20; const spacingX = 60; const spacingY = 65;
 
               for (let i = 0; i < group.length; i++) {
                   if (i > 0 && i % (cols * rows) === 0) pdf.addPage();
@@ -126,27 +124,21 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
                   
                   const dataUrl = await QRCode.toDataURL(group[i], { errorCorrectionLevel: qrConfig.level as any, margin: qrConfig.margin, color: { dark: qrConfig.fg, light: qrConfig.bg }});
                   pdf.addImage(dataUrl, 'PNG', x, y, qrSize, qrSize);
-                  pdf.setFontSize(9);
-                  pdf.setTextColor(100);
+                  pdf.setFontSize(9); pdf.setTextColor(100);
                   pdf.text(`${vaultName} - P${startIndex + i + 1}/${puzzles.length}`, x, y + qrSize + 5);
 
-                  // Yield to main thread
                   if (i % 10 === 0) {
-                      setDlProgress({ active: true, current: i + 1, total: group.length, msg: `Assembling PDF pages...` });
+                      setDlProgress(prev => ({ ...prev, current: i + 1, msg: `Assembling PDF...` }));
                       await new Promise(r => setTimeout(r, 0));
                   }
               }
-              
-              setDlProgress({ active: true, current: group.length, total: group.length, msg: `Saving PDF file...` });
+              setDlProgress(prev => ({ ...prev, current: group.length, msg: `Saving PDF...` }));
               await new Promise(r => setTimeout(r, 50));
               const fileName = splitCount > 1 ? `${vaultName}_PrintBundle_${groupIndex + 1}.pdf` : `${vaultName}_PrintBundle.pdf`;
               pdf.save(fileName);
           }
-      } catch (err) {
-          alert(`Failed to create ${type.toUpperCase()}.`);
-      }
-      
-      setDlProgress({ active: false, current: 0, total: 0, msg: '' });
+      } catch (err) { alert(`Failed to create ${type.toUpperCase()}.`); }
+      setDlProgress({ active: false, current: 0, total: 0, msg: '', minimized: false });
   };
 
   const currentPuzzles = puzzles.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -161,28 +153,37 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
               <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl w-full max-w-sm border border-gray-200 dark:border-gray-800 shadow-2xl text-center">
                   <div className="flex justify-center mb-4"><AlertCircle className="w-12 h-12 text-blue-500"/></div>
                   <h3 className="text-xl font-bold mb-2">Confirm Download</h3>
-                  <p className="text-sm text-gray-500 mb-6">
-                      You are about to generate and download <strong>{confirmModal.group.length} QR Codes</strong> as a <strong>{confirmModal.type.toUpperCase()}</strong> file. This process happens completely offline.
-                  </p>
+                  <p className="text-sm text-gray-500 mb-6">You are about to generate <strong>{confirmModal.group.length} QR Codes</strong> as a <strong>{confirmModal.type.toUpperCase()}</strong> file. This works completely offline.</p>
                   <div className="flex space-x-3">
-                      <button onClick={()=>setConfirmModal(null)} className="flex-1 p-3 bg-gray-200 dark:bg-gray-800 rounded-xl font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors">Cancel</button>
-                      <button onClick={executeDownload} className="flex-1 p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-colors">Yes, Download</button>
+                      <button onClick={()=>setConfirmModal(null)} className="flex-1 p-3 bg-gray-200 dark:bg-gray-800 rounded-xl font-bold text-gray-700 dark:text-gray-300">Cancel</button>
+                      <button onClick={executeDownload} className="flex-1 p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold">Yes, Download</button>
                   </div>
               </div>
           </div>
       )}
 
-      {/* --- PROGRESS BAR OVERLAY --- */}
-      {dlProgress.active && (
-          <div className="fixed inset-0 z-[70] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6">
+      {/* --- FLOATING BACKGROUND TASK UI --- */}
+      {dlProgress.active && !dlProgress.minimized && (
+          <div className="fixed inset-0 z-[70] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6">
+              <button onClick={() => setDlProgress({...dlProgress, minimized: true})} className="absolute top-6 right-6 p-3 bg-gray-800 hover:bg-gray-700 rounded-full text-white transition-all"><Minus className="w-6 h-6"/></button>
               <Loader2 className="w-16 h-16 text-green-500 animate-spin mb-6"/>
               <h2 className="text-2xl font-black text-white mb-2">{dlProgress.msg}</h2>
               <p className="text-green-400 font-mono text-lg mb-6">{dlProgress.current} / {dlProgress.total} Items</p>
-              
               <div className="w-full max-w-sm bg-gray-800 rounded-full h-4 overflow-hidden border border-gray-700 shadow-inner">
                   <div className="bg-gradient-to-r from-green-500 to-emerald-400 h-full transition-all duration-300" style={{ width: `${(dlProgress.current / dlProgress.total) * 100 || 0}%` }}></div>
               </div>
-              <p className="text-gray-500 text-xs mt-4">Please do not close the browser.</p>
+              <p className="text-gray-400 text-sm mt-8 bg-gray-900 px-4 py-2 rounded-xl">You can minimize this and do other work!</p>
+          </div>
+      )}
+
+      {dlProgress.active && dlProgress.minimized && (
+          <div onClick={() => setDlProgress({...dlProgress, minimized: false})} className="fixed top-24 right-4 z-[70] bg-gray-900 border border-gray-700 p-4 rounded-2xl shadow-2xl cursor-pointer hover:scale-105 transition-all flex items-center space-x-4">
+              <Loader2 className="w-6 h-6 text-green-500 animate-spin"/>
+              <div>
+                  <p className="text-xs font-bold text-white mb-1">Downloading...</p>
+                  <div className="w-24 bg-gray-800 rounded-full h-1.5 overflow-hidden"><div className="bg-green-500 h-full transition-all" style={{ width: `${(dlProgress.current / dlProgress.total) * 100 || 0}%` }}></div></div>
+              </div>
+              <Maximize2 className="w-4 h-4 text-gray-500"/>
           </div>
       )}
 
@@ -203,12 +204,12 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
 
       {inputType === 'none' && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><Camera className="w-6 h-6 text-blue-500 mb-2"/> <span className="text-xs font-bold">Live Photo</span><input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e)=>{setInputType('file'); handleFileUpload(e);}} /></label>
-              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><Video className="w-6 h-6 text-red-500 mb-2"/> <span className="text-xs font-bold">Live Video</span><input type="file" accept="video/*" capture="environment" className="hidden" onChange={(e)=>{setInputType('file'); handleFileUpload(e);}} /></label>
-              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><ImageIcon className="w-6 h-6 text-pink-500 mb-2"/> <span className="text-xs font-bold">Image File</span><input type="file" accept="image/*" className="hidden" onChange={(e)=>{setInputType('file'); handleFileUpload(e);}} /></label>
-              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><Video className="w-6 h-6 text-purple-500 mb-2"/> <span className="text-xs font-bold">Video File</span><input type="file" accept="video/*" className="hidden" onChange={(e)=>{setInputType('file'); handleFileUpload(e);}} /></label>
-              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><FileAudio className="w-6 h-6 text-yellow-500 mb-2"/> <span className="text-xs font-bold">Audio File</span><input type="file" accept="audio/*" className="hidden" onChange={(e)=>{setInputType('file'); handleFileUpload(e);}} /></label>
-              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><FileText className="w-6 h-6 text-orange-500 mb-2"/> <span className="text-xs font-bold">Document</span><input type="file" accept=".pdf,.doc,.docx,.txt,.xls" className="hidden" onChange={(e)=>{setInputType('file'); handleFileUpload(e);}} /></label>
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><Camera className="w-6 h-6 text-blue-500 mb-2"/> <span className="text-xs font-bold">Live Photo</span><input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileUpload} /></label>
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><Video className="w-6 h-6 text-red-500 mb-2"/> <span className="text-xs font-bold">Live Video</span><input type="file" accept="video/*" capture="environment" className="hidden" onChange={handleFileUpload} /></label>
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><ImageIcon className="w-6 h-6 text-pink-500 mb-2"/> <span className="text-xs font-bold">Image File</span><input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} /></label>
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><Video className="w-6 h-6 text-purple-500 mb-2"/> <span className="text-xs font-bold">Video File</span><input type="file" accept="video/*" className="hidden" onChange={handleFileUpload} /></label>
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><FileAudio className="w-6 h-6 text-yellow-500 mb-2"/> <span className="text-xs font-bold">Audio File</span><input type="file" accept="audio/*" className="hidden" onChange={handleFileUpload} /></label>
+              <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><FileText className="w-6 h-6 text-orange-500 mb-2"/> <span className="text-xs font-bold">Document</span><input type="file" accept=".pdf,.doc,.docx,.txt,.xls" className="hidden" onChange={handleFileUpload} /></label>
               <button onClick={() => setInputType('text')} className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl hover:scale-105 transition-all col-span-2 shadow-sm"><Type className="w-6 h-6 text-green-500 mb-2"/> <span className="text-xs font-bold">Secret Text Message</span></button>
           </div>
       )}
@@ -221,7 +222,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
               </div>
               <div className="bg-gray-50 dark:bg-gray-950 p-3 rounded-xl border border-gray-200 dark:border-gray-800 flex items-center">
                   <Edit3 className="w-5 h-5 text-blue-500 mr-2"/>
-                  <input type="text" value={vaultName} onChange={(e)=>setVaultName(e.target.value)} className="w-full bg-transparent outline-none font-bold text-blue-600 dark:text-blue-400" />
+                  <input type="text" value={vaultName} onChange={(e)=>setVaultName(e.target.value)} placeholder="Vault Name" className="w-full bg-transparent outline-none font-bold text-blue-600 dark:text-blue-400" />
               </div>
               {inputType === 'text' ? (
                   <textarea placeholder="Type secret message..." value={textData} onChange={(e)=>setTextData(e.target.value)} className="w-full p-4 bg-gray-50 dark:bg-gray-950 rounded-xl outline-none border border-gray-200 dark:border-gray-800 h-32" />
@@ -269,7 +270,6 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
                              <span className="text-xs bg-black/40 text-gray-400 px-2 py-1 rounded-lg">{group.length} QRs</span>
                           </div>
                           <div className="flex gap-2">
-                              {/* --- MODIFIED TO TRIGGER CONFIRMATION MODAL --- */}
                               <button onClick={() => initiateDownload(group, idx, 'zip')} disabled={dlProgress.active} className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50"><FileArchive className="w-4 h-4 mr-1"/> ZIP</button>
                               <button onClick={() => initiateDownload(group, idx, 'pdf')} disabled={dlProgress.active} className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50"><FileText className="w-4 h-4 mr-1"/> PDF</button>
                           </div>
