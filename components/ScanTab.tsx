@@ -220,13 +220,13 @@ export default function ScanTab({ isActive }: { isActive: boolean }) {
       )}
 
       <div className="flex space-x-2">
-          <button onClick={cameraActive ? stopCamera : startCamera} className={`flex-1 p-4 rounded-xl font-black text-white flex justify-center items-center transition-all shadow-md ${cameraActive ? 'bg-red-500 hover:bg-red-600' : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500'}`}>
+          <button aria-label={cameraActive ? "Stop camera" : "Start camera"} onClick={cameraActive ? stopCamera : startCamera} className={`flex-1 p-4 rounded-xl font-black text-white flex justify-center items-center transition-all shadow-md ${cameraActive ? 'bg-red-500 hover:bg-red-600' : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500'}`}>
               <Camera className="w-5 h-5 mr-2"/> {cameraActive ? 'Close Camera' : 'Open Camera Scanner'}
           </button>
           {cameraActive && (
               <>
-                  <button onClick={() => { stopCamera(); setFacingMode(prev => prev === 'environment' ? 'user' : 'environment'); setTimeout(startCamera, 500); }} className="p-4 bg-gray-200 dark:bg-gray-800 rounded-xl shadow-sm"><SwitchCamera className="w-6 h-6"/></button>
-                  <button onClick={toggleFlash} className={`p-4 rounded-xl shadow-sm ${flashOn ? 'bg-yellow-400 text-black' : 'bg-gray-200 dark:bg-gray-800'}`}><Flashlight className="w-6 h-6"/></button>
+                  <button aria-label="Switch camera" onClick={() => { stopCamera(); setFacingMode(prev => prev === 'environment' ? 'user' : 'environment'); setTimeout(startCamera, 500); }} className="p-4 bg-gray-200 dark:bg-gray-800 rounded-xl shadow-sm"><SwitchCamera className="w-6 h-6"/></button>
+                  <button aria-label="Toggle flash" onClick={toggleFlash} className={`p-4 rounded-xl shadow-sm ${flashOn ? 'bg-yellow-400 text-black' : 'bg-gray-200 dark:bg-gray-800'}`}><Flashlight className="w-6 h-6"/></button>
               </>
           )}
       </div>
@@ -246,7 +246,7 @@ export default function ScanTab({ isActive }: { isActive: boolean }) {
               <div className="p-5 bg-gray-900 text-white flex flex-col">
                   <div className="flex justify-between items-center mb-3">
                       <div className="flex items-center"><FileArchive className="w-6 h-6 text-blue-400 mr-2"/><span className="font-bold">{zipStatus.msg}</span></div>
-                      <button onClick={() => abortZipRef.current = true} className="p-2 bg-red-600 hover:bg-red-500 rounded-lg text-xs font-bold text-white transition-all"><X className="w-4 h-4"/></button>
+                      <button aria-label="Cancel unzip" onClick={() => abortZipRef.current = true} className="p-2 bg-red-600 hover:bg-red-500 rounded-lg text-xs font-bold text-white transition-all"><X className="w-4 h-4"/></button>
                   </div>
                   <div className="w-full bg-gray-800 rounded-full h-3 overflow-hidden border border-gray-700">
                       <div className="bg-gradient-to-r from-blue-500 to-green-400 h-full transition-all duration-200" style={{ width: `${(zipStatus.progress / zipStatus.total) * 100 || 0}%` }}></div>
@@ -270,8 +270,8 @@ export default function ScanTab({ isActive }: { isActive: boolean }) {
 
       {previewUrl && (
           <div className="relative p-2 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm animate-in fade-in mt-4">
-              <button onClick={()=>setPreviewUrl(null)} className="absolute top-4 right-4 bg-gray-900/70 hover:bg-gray-900 text-white p-2 rounded-full transition-all"><X className="w-5 h-5"/></button>
-              <img src={previewUrl} className="w-full h-48 object-contain rounded-xl bg-gray-100 dark:bg-gray-800" />
+              <button aria-label="Close preview" onClick={()=>setPreviewUrl(null)} className="absolute top-4 right-4 bg-gray-900/70 hover:bg-gray-900 text-white p-2 rounded-full transition-all"><X className="w-5 h-5"/></button>
+              <img src={previewUrl} alt="Camera scan preview" className="w-full h-48 object-contain rounded-xl bg-gray-100 dark:bg-gray-800" />
               <p className="text-center text-xs font-bold text-gray-500 mt-2 tracking-wider uppercase">File Preview</p>
           </div>
       )}

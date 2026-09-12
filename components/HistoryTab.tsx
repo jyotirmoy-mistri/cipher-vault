@@ -180,7 +180,7 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
       {matrixData && (
           <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4">
               <div className="bg-gray-900 border border-gray-700 rounded-3xl p-6 max-w-md w-full shadow-2xl relative overflow-hidden">
-                  <button onClick={()=>setMatrixData(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white bg-gray-800 rounded-full p-2"><X className="w-5 h-5"/></button>
+                  <button aria-label="Close matrix view" onClick={()=>setMatrixData(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white bg-gray-800 rounded-full p-2"><X className="w-5 h-5"/></button>
                   <div className="mb-6">
                       <h3 className="text-2xl font-black text-white flex items-center"><Grid3X3 className="w-6 h-6 mr-2 text-blue-500"/> Puzzle Matrix</h3>
                       <p className="text-gray-400 text-sm mt-1">Visualizing {matrixData.total} Security Fragments</p>
@@ -203,14 +203,14 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
 
       {previewData && (
           <div className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-4">
-              <button onClick={()=>setPreviewData(null)} className="absolute top-6 right-6 text-white bg-gray-800 hover:bg-gray-700 p-3 rounded-full transition-all">Close</button>
+              <button aria-label="Close preview" onClick={()=>setPreviewData(null)} className="absolute top-6 right-6 text-white bg-gray-800 hover:bg-gray-700 p-3 rounded-full transition-all">Close</button>
               {previewData.type === 'text' && (
                   <div className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-6 rounded-3xl max-w-lg w-full border border-gray-200 dark:border-gray-800 shadow-2xl relative">
                       <div className="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-gray-800 pb-4">
                           <h3 className="font-bold text-lg text-green-600">Decrypted Message</h3>
                           <div className="flex space-x-2">
-                              <button onClick={() => shareText(previewData.data)} className="flex items-center text-xs font-bold bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400 px-3 py-2 rounded-lg transition-all"><Share2 className="w-4 h-4 mr-1"/> Share</button>
-                              <button onClick={() => copyToClipboard(previewData.data)} className="flex items-center text-xs font-bold bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg hover:bg-gray-200 transition-all">
+                              <button aria-label="Share text" onClick={() => shareText(previewData.data)} className="flex items-center text-xs font-bold bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400 px-3 py-2 rounded-lg transition-all"><Share2 className="w-4 h-4 mr-1"/> Share</button>
+                              <button aria-label="Copy to clipboard" onClick={() => copyToClipboard(previewData.data)} className="flex items-center text-xs font-bold bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg hover:bg-gray-200 transition-all">
                                   {copied ? <><CheckCircle className="w-4 h-4 mr-1 text-green-500"/> Copied</> : <><Copy className="w-4 h-4 mr-1"/> Copy</>}
                               </button>
                           </div>
@@ -218,7 +218,7 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
                       <p className="whitespace-pre-wrap font-mono text-sm leading-relaxed max-h-[60vh] overflow-y-auto">{previewData.data}</p>
                   </div>
               )}
-              {previewData.type === 'image' && <img src={previewData.data} className="max-w-full max-h-[80vh] rounded-2xl shadow-2xl" />}
+              {previewData.type === 'image' && <img src={previewData.data} alt="Preview data" className="max-w-full max-h-[80vh] rounded-2xl shadow-2xl" />}
               {previewData.type === 'video' && <video src={previewData.data} controls className="max-w-full max-h-[80vh] rounded-2xl shadow-2xl" autoPlay />}
               {previewData.type === 'audio' && <audio src={previewData.data} controls className="w-full max-w-sm shadow-2xl" autoPlay />}
           </div>
@@ -227,7 +227,7 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
       {undoItem && (
           <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white px-6 py-3 rounded-full flex items-center shadow-2xl animate-in slide-in-from-top-5">
               <span>Vault deleted.</span>
-              <button onClick={undoDelete} className="ml-4 text-green-400 font-bold underline">UNDO</button>
+              <button aria-label="Undo delete" onClick={undoDelete} className="ml-4 text-green-400 font-bold underline">UNDO</button>
           </div>
       )}
 
@@ -236,7 +236,7 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
          
          return (
            <div key={fileId} className="p-5 bg-white dark:bg-gray-900 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm relative transition-all">
-              <button onClick={() => handleDelete(fileId)} className="absolute top-5 right-5 text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-5 h-5"/></button>
+              <button aria-label="Delete file" onClick={() => handleDelete(fileId)} className="absolute top-5 right-5 text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-5 h-5"/></button>
               
               <div className="mb-3">
                   <p className="text-xs font-mono text-gray-500 tracking-wider font-bold">VAULT_ID: {fileId}</p>
@@ -256,12 +256,12 @@ export default function HistoryTab({ isActive }: { isActive: boolean }) {
               {meta.isComplete ? (
                 <div className="flex space-x-2 bg-gray-50 dark:bg-gray-950 p-2 rounded-2xl border border-gray-200 dark:border-gray-800">
                   <input type="password" placeholder="Enter Password" onChange={(e)=>setUnlockPassword(e.target.value)} className="flex-1 p-3 bg-transparent outline-none font-bold" />
-                  <button onClick={() => handleAction(fileId, 'view')} className="px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors shadow-sm"><Eye className="w-5 h-5"/></button>
-                  <button onClick={() => handleAction(fileId, 'download')} className="px-4 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors shadow-sm"><Download className="w-5 h-5"/></button>
+                  <button aria-label="View file" onClick={() => handleAction(fileId, 'view')} className="px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors shadow-sm"><Eye className="w-5 h-5"/></button>
+                  <button aria-label="Download file" onClick={() => handleAction(fileId, 'download')} className="px-4 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors shadow-sm"><Download className="w-5 h-5"/></button>
                 </div>
               ) : (
                 <div className="bg-gray-50 dark:bg-gray-950 rounded-2xl p-4 border border-gray-200 dark:border-gray-800">
-                    <button onClick={() => openMatrix(fileId)} className="w-full flex items-center justify-center p-3 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 rounded-xl font-bold text-sm transition-colors mb-3">
+                    <button aria-label="Open matrix" onClick={() => openMatrix(fileId)} className="w-full flex items-center justify-center p-3 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 rounded-xl font-bold text-sm transition-colors mb-3">
                         <Grid3X3 className="w-4 h-4 mr-2 text-blue-500"/> View Live Puzzle Matrix
                     </button>
                     
