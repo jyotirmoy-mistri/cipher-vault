@@ -218,8 +218,8 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
                   <h3 className="text-xl font-bold mb-2">Confirm Data Export</h3>
                   <p className="text-sm text-gray-500 mb-6">Generating <strong>{confirmModal.group.length} Secured QRs</strong> into a <strong>{confirmModal.type.toUpperCase()}</strong> file format. Runs completely offline.</p>
                   <div className="flex space-x-3">
-                      <button onClick={()=>setConfirmModal(null)} className="flex-1 p-3 bg-gray-200 dark:bg-gray-800 rounded-xl font-bold">Cancel</button>
-                      <button onClick={executeDownload} className="flex-1 p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold">Start Export</button>
+                      <button aria-label="Cancel export" onClick={()=>setConfirmModal(null)} className="flex-1 p-3 bg-gray-200 dark:bg-gray-800 rounded-xl font-bold">Cancel</button>
+                      <button aria-label="Start export" onClick={executeDownload} className="flex-1 p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold">Start Export</button>
                   </div>
               </div>
           </div>
@@ -227,7 +227,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
 
       {dlProgress.active && !dlProgress.minimized && (
           <div className="fixed inset-0 z-[70] bg-gray-50 dark:bg-black/95 backdrop-blur-3xl flex flex-col items-center justify-center p-6 text-center shadow-2xl">
-              <button onClick={() => setDlProgress({...dlProgress, minimized: true})} className="absolute top-6 right-6 p-3 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 rounded-full transition-all text-gray-800 dark:text-white"><Minus className="w-6 h-6"/></button>
+              <button aria-label="Minimize progress" onClick={() => setDlProgress({...dlProgress, minimized: true})} className="absolute top-6 right-6 p-3 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 rounded-full transition-all text-gray-800 dark:text-white"><Minus className="w-6 h-6"/></button>
               
               <div className="relative mb-8 flex justify-center items-center">
                   <div className="absolute inset-0 bg-blue-500 blur-[60px] opacity-30 rounded-full w-32 h-32 m-auto"></div>
@@ -270,8 +270,8 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
                   <p className="text-xs text-gray-500 mb-6">How many separate bundles do you want?</p>
                   <input type="number" min="1" max={puzzles.length} value={tempSplitCount} onChange={(e)=>setTempSplitCount(Number(e.target.value))} className="w-full p-4 text-center text-2xl font-black bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-xl mb-6 outline-none focus:border-green-500" />
                   <div className="flex space-x-3">
-                      <button onClick={()=>setIsSplitModalOpen(false)} className="flex-1 p-4 bg-gray-200 dark:bg-gray-800 rounded-xl font-bold">Cancel</button>
-                      <button onClick={saveSplitConfig} className="flex-1 p-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold">Apply</button>
+                      <button aria-label="Cancel split config" onClick={()=>setIsSplitModalOpen(false)} className="flex-1 p-4 bg-gray-200 dark:bg-gray-800 rounded-xl font-bold">Cancel</button>
+                      <button aria-label="Apply split config" onClick={saveSplitConfig} className="flex-1 p-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold">Apply</button>
                   </div>
               </div>
           </div>
@@ -281,12 +281,12 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><Camera className="w-6 h-6 text-blue-500 mb-2"/> <span className="text-xs font-bold text-center">Live Photo</span><input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e)=>handleFileUpload(e, 'image')} /></label>
               <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><Video className="w-6 h-6 text-red-500 mb-2"/> <span className="text-xs font-bold text-center">Live Video</span><input type="file" accept="video/*" capture="environment" className="hidden" onChange={(e)=>handleFileUpload(e, 'video')} /></label>
-              <button onClick={startAudioRecord} className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl hover:scale-105 shadow-sm transition-all"><Mic className="w-6 h-6 text-orange-500 mb-2"/> <span className="text-xs font-bold text-center">Live Audio</span></button>
+              <button aria-label="Start live audio record" onClick={startAudioRecord} className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl hover:scale-105 shadow-sm transition-all"><Mic className="w-6 h-6 text-orange-500 mb-2"/> <span className="text-xs font-bold text-center">Live Audio</span></button>
               <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><ImageIcon className="w-6 h-6 text-pink-500 mb-2"/> <span className="text-xs font-bold text-center">Gallery (Max 3)</span><input type="file" accept="image/*, video/*" multiple className="hidden" onChange={(e)=>handleFileUpload(e, 'media')} /></label>
               <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><Video className="w-6 h-6 text-purple-500 mb-2"/> <span className="text-xs font-bold text-center">Video File</span><input type="file" accept="video/*" className="hidden" onChange={(e)=>handleFileUpload(e, 'video')} /></label>
               <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><FileAudio className="w-6 h-6 text-yellow-500 mb-2"/> <span className="text-xs font-bold text-center">Audio File</span><input type="file" accept="audio/*" className="hidden" onChange={(e)=>handleFileUpload(e, 'audio')} /></label>
               <label className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl cursor-pointer hover:scale-105 shadow-sm transition-all"><FileText className="w-6 h-6 text-indigo-500 mb-2"/> <span className="text-xs font-bold text-center">Document</span><input type="file" accept=".pdf,.doc,.docx,.txt,.xls" className="hidden" onChange={(e)=>handleFileUpload(e, 'document')} /></label>
-              <button onClick={() => setInputType('text')} className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl hover:scale-105 transition-all shadow-sm"><Type className="w-6 h-6 text-green-500 mb-2"/> <span className="text-xs font-bold text-center">Secret Text</span></button>
+              <button aria-label="Start secret text input" onClick={() => setInputType('text')} className="flex flex-col items-center p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl hover:scale-105 transition-all shadow-sm"><Type className="w-6 h-6 text-green-500 mb-2"/> <span className="text-xs font-bold text-center">Secret Text</span></button>
           </div>
       )}
 
@@ -294,7 +294,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
           <div className="p-5 bg-white dark:bg-gray-900 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-4">
               <div className="flex justify-between items-center mb-2">
                   <h3 className="font-bold flex items-center"><Shield className="w-5 h-5 mr-2 text-green-500"/> Vault Settings</h3>
-                  <button onClick={clearSendForm} className="text-red-500 bg-red-100 dark:bg-red-900/30 p-2 rounded-xl"><X className="w-5 h-5"/></button>
+                  <button aria-label="Clear form" onClick={clearSendForm} className="text-red-500 bg-red-100 dark:bg-red-900/30 p-2 rounded-xl"><X className="w-5 h-5"/></button>
               </div>
               <div className="bg-gray-50 dark:bg-gray-950 p-3 rounded-xl border border-gray-200 dark:border-gray-800 flex items-center">
                   <Edit3 className="w-5 h-5 text-blue-500 mr-2"/>
@@ -307,7 +307,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
                   <div className="p-6 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-900/50 flex flex-col items-center">
                       <div className="w-4 h-4 bg-red-500 rounded-full animate-pulse mb-3"/>
                       <span className="font-bold text-red-600 mb-4">Recording Live Audio...</span>
-                      <button onClick={stopAudioRecord} className="flex items-center px-4 py-2 bg-red-600 text-white rounded-full font-bold shadow-md"><StopCircle className="w-5 h-5 mr-2"/> Stop Recording</button>
+                      <button aria-label="Stop recording" onClick={stopAudioRecord} className="flex items-center px-4 py-2 bg-red-600 text-white rounded-full font-bold shadow-md"><StopCircle className="w-5 h-5 mr-2"/> Stop Recording</button>
                   </div>
               ) : (
                   <>
@@ -318,7 +318,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
                         <div className="grid grid-cols-3 gap-2 mt-2">
                             {previews.map((p, i) => (
                                 <div key={i} className="relative aspect-square bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center">
-                                    {p.type === 'image' ? <img src={p.url} className="w-full h-full object-cover"/> :
+                                    {p.type === 'image' ? <img src={p.url} alt="Uploaded file preview" className="w-full h-full object-cover"/> :
                                      p.type === 'video' ? <Video className="w-8 h-8 text-gray-400 mb-1"/> :
                                      p.type === 'audio' ? <Mic className="w-8 h-8 text-orange-400 mb-1"/> :
                                      <FileText className="w-8 h-8 text-indigo-400 mb-1"/>}
@@ -340,7 +340,7 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
               </div>
 
               <input type="password" placeholder="Enter Vault Password" value={password} onChange={(e)=>setPassword(e.target.value)} className="w-full p-4 bg-gray-50 dark:bg-gray-950 rounded-xl outline-none border border-gray-200 dark:border-gray-800 font-bold" />
-              <button onClick={handleEncrypt} disabled={isProcessing || (inputType === 'audio' && isRecording) || (!fileData && !textData)} className="w-full p-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-black shadow-lg transition-all disabled:opacity-50">
+              <button aria-label="Encrypt data" onClick={handleEncrypt} disabled={isProcessing || (inputType === 'audio' && isRecording) || (!fileData && !textData)} className="w-full p-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-black shadow-lg transition-all disabled:opacity-50">
                   {isProcessing ? "Processing Vault..." : "ENCRYPT & GENERATE"}
               </button>
           </div>
@@ -354,12 +354,12 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
                       <h3 className="text-xl font-black text-green-600 dark:text-green-500">{vaultName}</h3>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{puzzles.length} Total QRs • Saved {stats?.savedRatio}% data</p>
                   </div>
-                  <button onClick={clearSendForm} className="px-3 py-1 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-lg text-xs font-bold">Clear</button>
+                  <button aria-label="Clear form" onClick={clearSendForm} className="px-3 py-1 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-lg text-xs font-bold">Clear</button>
               </div>
 
               <div className="bg-white dark:bg-gray-800/50 p-3 rounded-xl mb-4 border border-gray-200 dark:border-gray-700 flex items-center justify-between">
                   <div className="flex items-center"><Share2 className="w-4 h-4 text-blue-500 dark:text-blue-400 mr-2"/><span className="text-xs font-bold text-gray-700 dark:text-gray-300">Bundle Separation: {splitCount} Groups</span></div>
-                  <button onClick={() => { setTempSplitCount(splitCount); setIsSplitModalOpen(true); }} className="p-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded text-gray-700 dark:text-white"><Settings2 className="w-4 h-4"/></button>
+                  <button aria-label="Open split config" onClick={() => { setTempSplitCount(splitCount); setIsSplitModalOpen(true); }} className="p-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded text-gray-700 dark:text-white"><Settings2 className="w-4 h-4"/></button>
               </div>
 
               <div className="grid grid-cols-1 gap-3">
@@ -370,8 +370,8 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
                              <span className="text-xs bg-gray-100 dark:bg-black/40 text-gray-600 dark:text-gray-400 px-2 py-1 rounded-lg">{group.length} QRs</span>
                           </div>
                           <div className="flex gap-2">
-                              <button onClick={() => initiateDownload(group, idx, 'zip')} disabled={dlProgress.active} className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50"><FileArchive className="w-4 h-4 mr-1"/> ZIP</button>
-                              <button onClick={() => initiateDownload(group, idx, 'pdf')} disabled={dlProgress.active} className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50"><FileText className="w-4 h-4 mr-1"/> PDF</button>
+                              <button aria-label="Download as ZIP" onClick={() => initiateDownload(group, idx, 'zip')} disabled={dlProgress.active} className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50"><FileArchive className="w-4 h-4 mr-1"/> ZIP</button>
+                              <button aria-label="Download as PDF" onClick={() => initiateDownload(group, idx, 'pdf')} disabled={dlProgress.active} className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50"><FileText className="w-4 h-4 mr-1"/> PDF</button>
                           </div>
                       </div>
                   ))}
@@ -394,9 +394,9 @@ export default function SendTab({ qrConfig }: { qrConfig: any }) {
 
           {totalPages > 1 && (
               <div className="flex justify-between items-center bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm">
-                  <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg disabled:opacity-30"><ChevronLeft className="w-6 h-6"/></button>
+                  <button aria-label="Previous page" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg disabled:opacity-30"><ChevronLeft className="w-6 h-6"/></button>
                   <span className="font-bold font-mono text-sm text-gray-700 dark:text-gray-300">Page {currentPage} / {totalPages}</span>
-                  <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg disabled:opacity-30"><ChevronRight className="w-6 h-6"/></button>
+                  <button aria-label="Next page" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg disabled:opacity-30"><ChevronRight className="w-6 h-6"/></button>
               </div>
           )}
         </div>
