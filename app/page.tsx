@@ -90,7 +90,7 @@ export default function CipherVault() {
               ) : (
                   <div className="flex items-center text-xs font-bold bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 px-2 py-1 rounded-full border border-green-200 dark:border-green-800"><Wifi className="w-3 h-3 mr-1"/> Online</div>
               )}
-              <button onClick={(e) => { e.stopPropagation(); toggleTheme(); }} className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700 shadow-sm">
+              <button aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"} onClick={(e) => { e.stopPropagation(); toggleTheme(); }} className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700 shadow-sm">
                   {isDarkMode ? <Sun className="w-5 h-5 text-yellow-400"/> : <Moon className="w-5 h-5 text-blue-600"/>}
               </button>
           </div>
@@ -106,7 +106,7 @@ export default function CipherVault() {
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-gray-50 via-gray-50 dark:from-gray-950 dark:via-gray-950 to-transparent pointer-events-none z-40">
           <div className="max-w-md mx-auto bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-200 dark:border-gray-800 rounded-3xl p-2 flex justify-between shadow-2xl pointer-events-auto">
               {['send', 'scan', 'history', 'settings'].map((tab) => (
-                  <button key={tab} onClick={() => setActiveTab(tab)} 
+                  <button key={tab} aria-label={`${tab} tab`} onClick={() => setActiveTab(tab)}
                       className={`flex-1 flex flex-col items-center justify-center p-3 rounded-2xl transition-all ${activeTab === tab ? 'bg-green-100 dark:bg-gray-800 text-green-600 dark:text-green-500 scale-105 shadow-sm font-bold' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
                       {tab === 'send' && <QrCode className="w-6 h-6"/>}
                       {tab === 'scan' && <Camera className="w-6 h-6"/>}
